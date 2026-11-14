@@ -6582,7 +6582,129 @@ function getCardGrantedEffectsList(inst, location) {
   return list;
 }
 
-function openCardDetailPanel(inst, location, side, lane, anchorEl = null) {
+
+const KEYWORD_GLOSSARY = {
+  '入场曲': '从手牌打出进入战场时触发的能力（由招募、亡者召还或衍生物召唤进场时不触发）。',
+  '谢幕曲': '随从或护符在战场上被破坏送入墓地时触发的能力；被【消失】时不触发。',
+  '守护': '敌方随从直接攻击我方主战者时，若该列为空位，我方具有【守护】的随从会自动横移至该列拦截攻击。',
+  '飞行': '攻击时可以越过不具有【防空】的敌方随从，直接攻击敌方主战者。',
+  '防空': '可以阻挡具有【飞行】的敌方随从越过自己直接攻击主战者。',
+  '灵气': '无法被敌方的法术卡指定为目标。',
+  '潜行': '直到自身进行攻击前，无法被敌方随从或法术指定为目标。',
+  '毁灭': '受到本随从攻击伤害的敌方随从会被直接破坏（即使未降到0血，屏障抵挡除外）。',
+  '荆棘': '【荆棘_X】受到敌方随从的战斗伤害时，对攻击者造成 X 点反伤。',
+  '虹吸': '对敌方随从或主战者造成战斗伤害时，为己方主战者回复等量生命值。',
+  '屏障': '抵挡该随从下一次受到的伤害（抵挡后【屏障】消失）。',
+  '位移': '每次攻击结束后自动向右侧空位移动一格；若触底或被阻挡则转向左侧移动。',
+  '多重攻击': '【多重攻击_X】每回合自动攻击结算时，可连续进行 X 次攻击。',
+  '两侧攻击': '攻击时改为同时打击正前方左右相邻的两列敌方单位。',
+  '三侧攻击': '攻击时改为同时打击正前方与左右相邻共三列敌方单位。',
+  '全体攻击': '攻击时打击敌方场上所有随从（若具备飞行且前方无防空，则同时直击主战者）。',
+  '倒计时': '【倒计时_X】每当自己的回合开始时倒计时 -1；归零时破坏（或触发变身）。',
+  '启动': '在自己回合内，点击场上该卡牌的详细面板即可支付对应费用主动发动（每回合限1次）。',
+  '融合': '在自己回合内，点击手牌中该卡牌的详细面板即可将手牌中的指定素材与之融合（每回合限1次）。',
+  '抉择': '打出时从多个分支能力中选择 1 项发动。',
+  '连击': '【连击_X】若这是本回合己方使用的第 X 张以上卡牌，则触发强化效果。',
+  '爆能强化': '【爆能强化_资源X】若当前拥有 X 以上对应资源，打出时自动支付 X 费用并发动强化效果。',
+  '瞬念召唤': '满足特定条件时，在回合结束阶段自动从牌库直接召唤到战场上。',
+  '招募': '【招募_能量X】从己方牌库中随机召唤 1 张满足条件的随从到战场上。',
+  '亡者召还': '【亡者召还_能量X】从己方墓地中复活 1 张满足条件的随从到战场上（优先最高费）。',
+  '消失': '直接移出本局对战，不进入墓地、不增加骨头且不触发【谢幕曲】。',
+  '随从进场时': '无论从手牌打出还是被效果召唤进入战场，都会立即触发。',
+  '回合结束时': '在己方回合结束结算阶段触发。',
+  '攻击时': '该随从每次发起攻击前触发。',
+  '纹章': '附着在主战者身上的持久/倒计时效果徽记，上限5个，同名不叠加。'
+};
+
+let detailNavStack = [];
+
+function formatInteractiveDetailHTML(rawText, currentCardName = '') {
+  let safe = String(rawText || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // 1. 关键词 pill: 【xxx】
+  safe = safe.replace(/【([^】]+)】/g, (full, inner) => {
+    const baseKw = inner.split('_')[0].split('：')[0].trim();
+    const matchedKey = Object.keys(KEYWORD_GLOSSARY).find(k => baseKw === k || baseKw.startsWith(k));
+    if (matchedKey) {
+      return `<button type="button" class="cf-kw-link" data-kw="${matchedKey}" title="点击查看【${matchedKey}】词条说明">【${inner}】</button>`;
+    }
+    return `<span class="px-1 rounded bg-amber-950/70 border border-amber-500/40 text-amber-200 font-bold">【${inner}】</span>`;
+  });
+  // 2. 卡牌名 pill: 『xxx』
+  safe = safe.replace(/『([^』]+)』/g, (full, cName) => {
+    const targetCard = allCards.find(x => x.name === cName);
+    if (targetCard && cName !== currentCardName) {
+      return `<button type="button" class="cf-card-link" data-card-name="${cName}" title="点击查看『${cName}』卡牌详情">『${cName}』</button>`;
+    }
+    return `<span class="text-cyan-300 font-black">『${cName}』</span>`;
+  });
+  // 3. 数值高亮 (+X/+Y, X点伤害, 倒计时-X, 骨头+X)
+  safe = safe.replace(/([+-]\d+\/[+-]?\d+|倒计时[+-]\d+|骨头[+-]\d+|\d+点(?:伤害|生命值))/g, '<b class="text-emerald-300 font-black">$1</b>');
+  return safe;
+}
+
+function bindDetailInteractiveLinks(container) {
+  if (!container) return;
+  container.querySelectorAll('.cf-kw-link').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const kw = btn.getAttribute('data-kw');
+      if (!kw || !KEYWORD_GLOSSARY[kw]) return;
+      if (battle.inspectedCard) {
+        if (detailNavStack.length < 8) detailNavStack.push({ type: 'card', state: battle.inspectedCard });
+      }
+      renderDetailKeywordGlossaryView(kw);
+    };
+  });
+  container.querySelectorAll('.cf-card-link').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const cName = btn.getAttribute('data-card-name');
+      const targetDef = allCards.find(x => x.name === cName);
+      if (!targetDef) return;
+      if (battle.inspectedCard && battle.inspectedCard.inst && battle.inspectedCard.inst.data.name === cName) return;
+      if (battle.inspectedCard) {
+        if (detailNavStack.length < 8) detailNavStack.push({ type: 'card', state: battle.inspectedCard });
+      }
+      const refInst = createCardInstance(targetDef.id, 0);
+      openCardDetailPanel(refInst, 'ref', 0, -1, null, true);
+    };
+  });
+}
+
+function renderDetailKeywordGlossaryView(kw) {
+  const panel = document.getElementById('svDetailPanel');
+  if (!panel) return;
+  document.getElementById('detEnergyBadge').textContent = '📖';
+  document.getElementById('detCardName').textContent = `关键词 · 【${kw}】`;
+  document.getElementById('detCardSub').textContent = '词条机制说明（随时点击右上角 ✕ 关闭回到对战）';
+  document.getElementById('detCostsRow').innerHTML = `<button type="button" id="btnDetNavBack" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-200 font-black text-xs cursor-pointer">◀ 返回上一张卡牌</button>`;
+  document.getElementById('detStatsRow').innerHTML = '';
+  const segBox = document.getElementById('detSegmentedEffects');
+  segBox.innerHTML = `<div class="p-3 rounded-xl bg-amber-950/40 border border-amber-400/60 text-amber-100 text-sm leading-relaxed font-bold">${KEYWORD_GLOSSARY[kw]}</div>`;
+  document.getElementById('detGrantedEffectsWrap')?.classList.add('hidden');
+  document.getElementById('detActionBox')?.classList.add('hidden');
+  document.getElementById('btnDetNavBack')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    popDetailNavStack();
+  });
+  panel.classList.remove('hidden');
+}
+
+function popDetailNavStack() {
+  const prev = detailNavStack.pop();
+  if (!prev) {
+    battle.inspectedCard = null;
+    document.getElementById('svDetailPanel')?.classList.add('hidden');
+    return;
+  }
+  if (prev.type === 'card' && prev.state) {
+    const s = prev.state;
+    openCardDetailPanel(s.inst, s.location, s.side, s.lane, null, true);
+  }
+}
+
+function openCardDetailPanel(inst, location, side, lane, anchorEl = null, keepStack = false) {
+  if (!keepStack) detailNavStack = [];
   battle.inspectedCard = { inst, location, side, lane };
   const panel = document.getElementById('svDetailPanel');
   const c = inst.data;
@@ -6629,24 +6751,39 @@ function openCardDetailPanel(inst, location, side, lane, anchorEl = null) {
 
   const segBox = document.getElementById('detSegmentedEffects');
   segBox.innerHTML = '';
+  if (detailNavStack.length > 0) {
+    const navBar = document.createElement('div');
+    navBar.className = 'flex items-center justify-between gap-2 pb-1';
+    navBar.innerHTML = `<button type="button" id="btnDetCardBack" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-200 font-black text-xs cursor-pointer">◀ 返回上一页</button><span class="text-[11px] text-cyan-300 font-bold">关联卡牌查看中</span>`;
+    segBox.appendChild(navBar);
+    navBar.querySelector('#btnDetCardBack')?.addEventListener('click', (e) => { e.stopPropagation(); popDetailNavStack(); });
+  }
+  if (c.sacrifice > 0 || c.sacrificeCond) {
+    const sacBox = document.createElement('div');
+    sacBox.className = 'p-2.5 rounded-xl bg-rose-950/75 border-2 border-rose-400/75 text-rose-100 text-xs font-black shadow';
+    sacBox.innerHTML = `🩸 祭品条件：打出时需破坏己方场上 <span class="text-amber-300">${c.sacrifice || 1}</span> 个${c.sacrificeCond ? `「<span class="text-amber-200">${c.sacrificeCond}</span>」` : '任意'}随从`;
+    segBox.appendChild(sacBox);
+  }
   const rawLines = getCardDisplayText(c, inst).split('\n').filter(Boolean);
   rawLines.forEach(line => {
     const block = document.createElement('div');
     const isCrystalLine = line.includes('【结晶') || line.includes('【激奏');
     const isEnhanceLine = line.includes('【爆能强化') || line.includes('【连击') || line.includes('【融合】') || line.includes('若己方战场上有') || line.includes('若打出后');
+    const richLine = formatInteractiveDetailHTML(line, c.name);
 
     if (location === 'hand' && ((playEval.activeSection === 'crystallize' || playEval.activeSection === 'accelerate') && isCrystalLine)) {
-      block.className = 'p-2.5 rounded-xl bg-sky-950/90 border-2 border-cyan-300 shadow-[0_0_16px_rgba(56,189,248,0.6)] text-cyan-100 font-bold';
-      block.innerHTML = `<div class="text-[11px] text-cyan-300 font-black mb-1">✦ 当前打出生效分支</div><div>${line}</div>`;
+      block.className = 'p-2.5 rounded-xl bg-sky-950/90 border-2 border-cyan-300 shadow-[0_0_16px_rgba(56,189,248,0.6)] text-cyan-100 font-bold leading-relaxed';
+      block.innerHTML = `<div class="text-[11px] text-cyan-300 font-black mb-1">✦ 当前打出生效分支</div><div>${richLine}</div>`;
     } else if (location === 'hand' && (playEval.glow === 'sv-glow-yellow' && (isEnhanceLine || rawLines.length === 1))) {
-      block.className = 'p-2.5 rounded-xl bg-amber-950/85 border-2 border-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.55)] text-amber-100 font-bold';
-      block.innerHTML = `<div class="text-[11px] text-amber-300 font-black mb-1">✦ 条件已满足 · 强化生效</div><div>${line}</div>`;
+      block.className = 'p-2.5 rounded-xl bg-amber-950/85 border-2 border-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.55)] text-amber-100 font-bold leading-relaxed';
+      block.innerHTML = `<div class="text-[11px] text-amber-300 font-black mb-1">✦ 条件已满足 · 强化生效</div><div>${richLine}</div>`;
     } else {
-      block.className = 'p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-100';
-      block.textContent = line;
+      block.className = 'p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-100 leading-relaxed';
+      block.innerHTML = richLine;
     }
     segBox.appendChild(block);
   });
+  bindDetailInteractiveLinks(segBox);
 
   const grantedWrap = document.getElementById('detGrantedEffectsWrap');
   const grantedListEl = document.getElementById('detGrantedEffectsList');
@@ -7046,79 +7183,79 @@ function buildFollowerTokenDOM(inst, side, lane) {
 function buildHandCardDOM(cardData, inst = null, deckBadgeCount = 0) {
   const el = document.createElement('div');
   const rarityCls = getRarityClass(cardData.rarity);
-  const rarityBadgeCls = getRarityBadgeClass(cardData.rarity);
   const typeFrameCls = cardData.type === 'amulet' ? 'sv-card-type-amulet' : (cardData.type === 'spell' ? 'sv-card-type-spell' : 'sv-card-type-minion');
 
-  el.className = `sv-hand-card ${rarityCls} ${typeFrameCls} overflow-hidden flex flex-col justify-between p-1.5`;
+  el.className = `sv-hand-card ${rarityCls} ${typeFrameCls} overflow-hidden flex flex-col justify-between p-1.5 gap-1`;
   if (inst && inst.uid) el.dataset.cardUid = String(inst.uid);
   const leaderSt = inst && battle.leaders[inst.owner] ? battle.leaders[inst.owner] : (battle.leaders ? battle.leaders[0] : null);
   const effE = inst ? getEffectiveEnergy(inst, leaderSt) : cardData.energy;
 
-  const extraCosts = [];
-  if (cardData.sacrifice > 0) extraCosts.push(`<span class="px-1.5 py-0.2 rounded-full bg-rose-700 border border-rose-300 text-[10px] font-black text-white shadow">祭${cardData.sacrifice}</span>`);
-  if (cardData.bones > 0) extraCosts.push(`<span class="px-1.5 py-0.2 rounded-full bg-amber-200 border border-amber-500 text-[10px] font-black text-slate-950 shadow">骨${cardData.bones}</span>`);
+  const costGems = [];
+  if (effE > 0 || (cardData.sacrifice === 0 && cardData.bones === 0)) {
+    costGems.push(`<span class="sv-cost-gem sv-cost-energy" title="能量费用">⚡${effE}</span>`);
+  }
+  if (cardData.sacrifice > 0) {
+    costGems.push(`<span class="sv-cost-gem sv-cost-sac" title="献祭祭品">🩸${cardData.sacrifice}</span>`);
+  }
+  if (cardData.bones > 0) {
+    costGems.push(`<span class="sv-cost-gem sv-cost-bones" title="骨头费用">🦴${cardData.bones}</span>`);
+  }
   const initCd = inst && inst.countdown !== null ? inst.countdown : getInitialCountdown(cardData);
-  if (initCd > 0) extraCosts.push(`<span class="px-2 py-0.2 rounded-full sv-hand-countdown-pill text-[10px]">⏳${initCd}</span>`);
+  if (initCd > 0) {
+    costGems.push(`<span class="sv-cost-gem sv-cost-cd" title="倒计时">⏳${initCd}</span>`);
+  }
 
+  const rarityGemMap = {
+    '普通': '<span title="普通" class="text-[10px] text-slate-300/90">◆</span>',
+    '稀有': '<span title="稀有" class="text-[10px] text-sky-300 drop-shadow">◆◆</span>',
+    '史诗': '<span title="史诗" class="text-[11px] text-purple-300 drop-shadow">❖</span>',
+    '传说': '<span title="传说" class="text-[11px] text-amber-300 drop-shadow">♛</span>'
+  };
+  const rarityCorner = rarityGemMap[cardData.rarity] || rarityGemMap['普通'];
+  const typeBadgeTxt = cardData.type === 'minion' ? '⚔️ 随从' : (cardData.type === 'amulet' ? '⛩️ 护符' : '✨ 法术');
+  const raceTxt = cardData.race ? cardData.race : '无种族';
 
   const atkVal = inst ? inst.currentAtk : cardData.atk;
   const hpVal = inst ? inst.currentHp : cardData.hp;
   const maxHpVal = inst ? inst.maxHp : cardData.hp;
   const imgUri = getAnimeIllustrationDataURI(cardData);
 
-  const kwTags = [];
-  (cardData.keywords || []).forEach(kw => {
-    if (!kw || !kw.k) return;
-    if (kw.k === '倒计时') return;
-    const label = kw.v > 0 && ['荆棘','连击','爆能强化','多重攻击'].includes(kw.k) ? `${kw.k}${kw.v}` : kw.k;
-    if (!kwTags.includes(label)) kwTags.push(label);
-  });
-  const kwDisplay = kwTags.slice(0, 3).map(t => `<span class="px-1.5 py-0.2 rounded bg-slate-950/90 border border-amber-400/55 text-[9px] font-black text-amber-200 shadow">${t}</span>`).join('')
-    + (kwTags.length > 3 ? `<span class="px-1 py-0.2 rounded bg-slate-950/90 border border-slate-500 text-[9px] font-bold text-slate-300">+${kwTags.length - 3}</span>` : '');
-
   el.innerHTML = `
-    <div class="relative z-10 flex items-center gap-1">
-      <div class="w-7 h-7 rounded-full ${effE < cardData.energy ? 'bg-gradient-to-b from-cyan-400 to-emerald-700' : 'bg-gradient-to-b from-emerald-400 to-emerald-800'} border-2 border-amber-200 flex items-center justify-center font-black text-sm text-white shadow shrink-0">
-        ${effE}
-      </div>
-      <div class="flex-1 bg-slate-950/90 border border-amber-400/45 rounded-md px-1.5 py-0.5 text-[11px] font-black text-white leading-tight text-center line-clamp-2 min-h-[26px] flex items-center justify-center">
-        ${cardData.name}
-      </div>
+    <div class="relative z-10 flex items-center justify-between gap-1">
+      <div class="flex items-center gap-1 flex-wrap">${costGems.join('')}</div>
+      <div class="px-1.5 py-0.5 rounded bg-slate-950/85 border border-white/15 leading-none shrink-0">${rarityCorner}</div>
     </div>
 
-    <div class="sv-card-art-box relative my-1 rounded-lg overflow-hidden border-2 border-amber-300/40 flex-1 min-h-[92px]">
+    <div class="relative z-10 bg-slate-950/90 border border-amber-400/40 rounded-md px-1.5 py-0.5 text-[11px] font-black text-white leading-tight text-center line-clamp-2 min-h-[26px] flex items-center justify-center shadow">
+      ${cardData.name}
+    </div>
+
+    <div class="sv-card-art-box relative rounded-lg overflow-hidden border-2 border-amber-300/40 flex-1 min-h-[82px]">
       <img src="${imgUri}" class="w-full h-full object-cover" alt="${cardData.name}"/>
-      ${extraCosts.length > 0 ? `<div class="absolute top-1 left-1 z-20 flex flex-wrap items-center gap-1">${extraCosts.join('')}</div>` : ''}
       ${deckBadgeCount > 0 ? `<span class="absolute top-1 right-1 z-20 px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[10px] shadow">×${deckBadgeCount}</span>` : ''}
-      ${kwDisplay ? `<div class="absolute bottom-1 inset-x-1 z-20 flex flex-wrap items-center justify-center gap-1">${kwDisplay}</div>` : ''}
+    </div>
+
+    <div class="relative z-10 sv-card-type-race-strip">
+      <span>${typeBadgeTxt}</span>
+      <span class="text-slate-500">·</span>
+      <span class="text-amber-200/95 truncate">${raceTxt}</span>
     </div>
 
     ${cardData.type === 'minion' ? `
-      <div class="relative z-10 flex items-center justify-between gap-1 pt-0.5">
+      <div class="relative z-10 flex items-center justify-between px-0.5">
         <div class="w-7 h-7 rounded-lg sv-atk-badge flex items-center justify-center text-sm shrink-0">
           <span class="sv-stat-num ${atkVal > (cardData.atk || 0) ? 'sv-stat-buff' : (atkVal < (cardData.atk || 0) ? 'sv-stat-debuff' : 'sv-stat-normal')}">${atkVal}</span>
         </div>
-        <div class="flex-1 flex flex-col items-center min-w-0">
-          <span class="px-1.5 py-0.2 rounded text-[8.5px] font-black ${rarityBadgeCls}">${cardData.rarity}</span>
-          <span class="text-[9px] font-bold text-amber-200/95 truncate max-w-full">${cardData.race || '随从'}</span>
-        </div>
+        <span class="text-[9px] font-bold text-slate-400/90 tracking-widest">ATK / HP</span>
         <div class="w-7 h-7 rounded-lg sv-hp-badge flex items-center justify-center text-sm shrink-0">
           <span class="sv-stat-num ${inst && hpVal < maxHpVal ? 'sv-stat-dmg' : (hpVal > (cardData.hp || 1) ? 'sv-stat-buff' : 'sv-stat-normal')}">${hpVal}</span>
         </div>
       </div>
-    ` : (cardData.type === 'amulet' ? `
-      <div class="relative z-10 flex items-center justify-between pt-0.5 px-1">
-        <span class="px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-400/80 text-[9px] font-black text-emerald-200">⛩️ 护符</span>
-        <span class="px-1.5 py-0.2 rounded text-[8.5px] font-black ${rarityBadgeCls}">${cardData.rarity}</span>
-        <span class="text-[9px] font-bold text-amber-200/95 truncate">${cardData.race || '无种族'}</span>
-      </div>
     ` : `
-      <div class="relative z-10 flex items-center justify-between pt-0.5 px-1">
-        <span class="px-1.5 py-0.5 rounded bg-indigo-950 border border-indigo-400/80 text-[9px] font-black text-indigo-200">✨ 法术</span>
-        <span class="px-1.5 py-0.2 rounded text-[8.5px] font-black ${rarityBadgeCls}">${cardData.rarity}</span>
-        <span class="text-[9px] font-bold text-amber-200/95 truncate">${cardData.race || '无种族'}</span>
+      <div class="relative z-10 flex items-center justify-center h-[28px]">
+        <span class="text-[9.5px] font-black tracking-widest ${cardData.type === 'amulet' ? 'text-emerald-300/85' : 'text-indigo-300/85'}">${cardData.type === 'amulet' ? '✦ 圣殿护符 ✦' : '✦ 奥术法术 ✦'}</span>
       </div>
-    `)}
+    `}
   `;
   return el;
 }
