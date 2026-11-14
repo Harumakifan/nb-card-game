@@ -2383,3 +2383,30 @@
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.75);
 }
+
+/* === v56 手牌可打出高亮外圈特效（不被稀有度 box-shadow !important 覆盖） === */
+@keyframes hand-playable-pulse {
+  0% { opacity: 0.72; box-shadow: 0 0 12px rgba(52, 211, 153, 0.75), 0 0 24px rgba(34, 211, 238, 0.45); }
+  100% { opacity: 1; box-shadow: 0 0 20px rgba(52, 211, 153, 0.98), 0 0 38px rgba(34, 211, 238, 0.75); }
+}
+@keyframes hand-playable-enh-pulse {
+  0% { opacity: 0.75; box-shadow: 0 0 14px rgba(250, 204, 21, 0.8), 0 0 26px rgba(249, 115, 22, 0.5); }
+  100% { opacity: 1; box-shadow: 0 0 24px rgba(250, 204, 21, 1), 0 0 42px rgba(249, 115, 22, 0.85); }
+}
+.sv-hand-card.sv-hand-playable::after,
+.sv-hand-card.sv-hand-playable-enh::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 17px;
+  pointer-events: none;
+  z-index: 1;
+}
+.sv-hand-card.sv-hand-playable::after {
+  border: 2.5px solid #34d399;
+  animation: hand-playable-pulse 1.05s ease-in-out infinite alternate;
+}
+.sv-hand-card.sv-hand-playable-enh::after {
+  border: 2.5px solid #fde047;
+  animation: hand-playable-enh-pulse 0.95s ease-in-out infinite alternate;
+}

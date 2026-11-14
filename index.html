@@ -193,12 +193,6 @@
       </div>
     </div>
 
-    <!-- 献祭与分步出牌中央高亮操作引导横幅 -->
-    <div id="sacrificeGuideBanner" style="top: 118px; z-index: 175; background: linear-gradient(90deg, #4c0519 0%, #090d16 50%, #1e1b4b 100%); opacity: 1;" class="hidden fixed left-1/2 -translate-x-1/2 px-7 py-2.5 rounded-2xl border-2 border-amber-300 shadow-[0_0_36px_rgba(244,63,94,0.85)] flex items-center gap-3 pointer-events-none">
-      <span id="sacGuideStepBadge" class="px-2.5 py-0.5 rounded-full bg-rose-600 border border-amber-200 text-xs font-black text-white shadow">步骤 1/2</span>
-      <span id="sacGuideMainText" class="text-sm font-black text-amber-200 tracking-wide">请选择要献祭的己方随从</span>
-    </div>
-
     <!-- 中央放大版 5列×2排全息六边形战道棋盘 -->
     <div id="boardArenaBox" style="transform: scale(1.08); transform-origin: center center;" class="sv-board-frame px-8 py-4 flex flex-col gap-3.5 items-center justify-center relative">
       <div id="enemyLanesRow" class="flex items-center gap-4"></div>
@@ -435,24 +429,19 @@
 
   <div class="flex-1 flex flex-col bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3.5 overflow-hidden">
     <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
-      <div class="flex flex-wrap items-center gap-1.5">
-        <button data-filter="全部" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 text-slate-950">全部</button>
-        <button data-filter="随从" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">⚔️ 随从</button>
-        <button data-filter="法术" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">✨ 法术</button>
-        <button data-filter="护符" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">⛩️ 护符</button>
-        <button data-filter="龙族" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">🐉 龙族</button>
-        <button data-filter="机械" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">⚙️ 机械</button>
-        <button data-filter="亡灵" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">💀 亡灵</button>
-        <button data-filter="无种族" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">🌀 无种族</button>
-        <label class="flex items-center gap-1 text-xs text-slate-300 ml-1 cursor-pointer">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-black text-amber-300">🃏 卡牌图鉴</span>
+        <label class="flex items-center gap-1 text-xs text-slate-300 cursor-pointer">
           <input id="chkDeckShowTokens" type="checkbox" class="rounded"> 衍生物
         </label>
+        <span id="deckGalleryCountBadge" class="text-[11px] font-black px-2 py-0.5 rounded-md bg-slate-800 text-cyan-300 border border-slate-700">-- 张</span>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <span id="deckGalleryCountBadge" class="text-[11px] font-black px-2 py-0.5 rounded-md bg-slate-800 text-cyan-300 border border-slate-700">-- 张</span>
         <select id="selDeckSort" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-amber-200">
-          <option value="value_asc">⚖️ 价值从低到高</option>
-          <option value="value_desc">⚖️ 价值从高到低</option>
+          <option value="energy_asc" selected>⚡ 按能量从低到高</option>
+          <option value="energy_desc">⚡ 按能量从高到低</option>
+          <option value="value_asc">⚖️ 按价值从低到高</option>
+          <option value="value_desc">⚖️ 按价值从高到低</option>
           <option value="atk_desc">⚔️ 攻击力从高到低</option>
           <option value="hp_desc">❤️ 生命值从高到低</option>
           <option value="rarity_desc">💎 稀有度从高到低</option>
@@ -520,7 +509,10 @@
       <button id="btnDeckClear" class="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-xs font-bold text-white">清空</button>
     </div>
     <div id="deckEditorList" class="flex-1 overflow-y-auto space-y-1 pr-1"></div>
-    <button id="btnDeckBackPrev" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs shadow-lg">🏠 保存并返回上个界面</button>
+    <div class="flex gap-2">
+      <button id="btnDeckSaveOnly" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs shadow-lg">💾 保存卡组</button>
+      <button id="btnDeckBackPrev" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs shadow-lg">🏠 保存并返回</button>
+    </div>
   </div>
 </div>
 
@@ -1042,6 +1034,12 @@
   frame.srcdoc = new TextDecoder('utf-8').decode(bytes);
 })();
 </script>
+
+<!-- 献祭与分步出牌中央高亮操作引导横幅（置顶独立层，不被主战者头像遮挡） -->
+<div id="sacrificeGuideBanner" style="top: 118px; z-index: 9999; background: linear-gradient(90deg, #4c0519 0%, #090d16 50%, #1e1b4b 100%); opacity: 1;" class="hidden fixed left-1/2 -translate-x-1/2 px-7 py-2.5 rounded-2xl border-2 border-amber-300 shadow-[0_0_36px_rgba(244,63,94,0.85)] flex items-center gap-3 pointer-events-none">
+  <span id="sacGuideStepBadge" class="px-2.5 py-0.5 rounded-full bg-rose-600 border border-amber-200 text-xs font-black text-white shadow">步骤 1/2</span>
+  <span id="sacGuideMainText" class="text-sm font-black text-amber-200 tracking-wide">请选择要献祭的己方随从</span>
+</div>
 </body>
 </html>
 
