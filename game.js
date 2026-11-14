@@ -1338,6 +1338,11 @@ class SoundSynth {
   }
   play(type) {
     if (this.muted || !this.ctx || this.ctx.state !== 'running') return;
+    const nowMs = Date.now();
+    if (type === 'click') {
+      if (nowMs - (this._lastClickMs || 0) < 80) return;
+      this._lastClickMs = nowMs;
+    }
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
@@ -8939,8 +8944,8 @@ function updateResponsiveViewportScale() {
   let sideHudScale = 1.0;
   if (isCompactLandscape) {
     sideHudScale = aspect >= 1.95 ? 1.24 : 1.06;
-  } else if (vw >= 1680) {
-    sideHudScale = 1.08;
+  } else {
+    sideHudScale = vw >= 1760 ? 1.34 : (vw >= 1440 ? 1.24 : 1.14);
   }
   document.documentElement.style.setProperty('--side-hud-scale', sideHudScale.toFixed(3));
   const portOv = document.getElementById('mobilePortraitOverlay');
