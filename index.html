@@ -7,7 +7,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CardForge · 冥刻之诗 — 影之诗：超凡世界桌面版 & 规范用语卡牌设计器</title>
-<link rel="stylesheet" href="styles.css?v=59">
+<link rel="stylesheet" href="styles.css?v=62">
 </head>
 <body class="sv-arena-bg select-none" oncontextmenu="return false;">
 
@@ -121,37 +121,7 @@
     </div>
 
     <!-- 图5 & 图9：放大版左侧详细面板（默认位于左中偏下偏右；若从战局记录点击则悬浮于记录右侧绝不遮挡；内含逐条排列的附加效果清单） -->
-    <div id="svDetailPanel" class="interactive-zone hidden fixed left-8 top-20 z-[130] w-[380px] bg-slate-950/96 border-2 border-amber-400/90 rounded-2xl p-4 shadow-[0_12px_45px_rgba(0,0,0,0.92)] flex flex-col gap-3 max-h-[74vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-amber-500/35 pb-2.5">
-        <div class="flex items-center gap-2.5">
-          <span id="detEnergyBadge" class="w-8 h-8 rounded-full bg-emerald-600 border-2 border-emerald-300 flex items-center justify-center font-black text-base text-white shadow">2</span>
-          <div>
-            <div id="detCardName" class="text-lg font-black text-white leading-tight">赛博牧羊人</div>
-            <div id="detCardSub" class="text-xs text-amber-300 font-bold mt-0.5">随从 · 机械 · 稀有</div>
-          </div>
-        </div>
-        <button id="btnCloseDetail" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-xs font-bold">✕</button>
-      </div>
-
-      <div class="flex items-center justify-between bg-slate-900/95 rounded-xl px-3.5 py-2 text-xs border border-slate-800">
-        <div id="detCostsRow" class="flex items-center gap-2.5 font-bold"></div>
-        <div id="detStatsRow" class="flex items-center gap-2.5 font-black text-sm"></div>
-      </div>
-
-      <div id="detSegmentedEffects" class="flex flex-col gap-2 text-[13px] leading-relaxed"></div>
-
-      <!-- 新增：当卡牌获得效果时，在详细面板中一条条排列展示所有获得的附加效果 -->
-      <div id="detGrantedEffectsWrap" class="hidden flex flex-col gap-1.5 pt-2 border-t border-amber-500/35">
-        <div class="text-xs font-black text-amber-300 flex items-center gap-1.5">
-          <span>✨ 附加效果 (已获得能力)</span>
-        </div>
-        <div id="detGrantedEffectsList" class="flex flex-col gap-1.5 text-xs"></div>
-      </div>
-
-      <div id="detActionBox" class="hidden pt-1">
-        <button id="btnDetailAction" class="w-full py-2.5 rounded-xl bg-gradient-to-b from-amber-500 to-amber-800 hover:from-amber-400 hover:to-amber-700 border border-amber-300 text-white font-black text-sm shadow-lg transition"></button>
-      </div>
-    </div>
+    
 
     <!-- 图8：左侧中偏上触发效果展示队列 -->
     <div id="svEffectFeed" class="fixed left-4 top-24 z-[50] flex flex-col gap-2 pointer-events-none"></div>
@@ -1022,8 +992,8 @@
   </div>
 </div>
 
-<script src="artEngine.js?v=59"></script>
-<script src="game.js?v=59"></script>
+<script src="artEngine.js?v=62"></script>
+<script src="game.js?v=62"></script>
 
 <script>
 
@@ -1043,6 +1013,38 @@
   <span id="sacGuideStepBadge" class="px-2.5 py-0.5 rounded-full bg-rose-600 border border-amber-200 text-xs font-black text-white shadow">步骤 1/2</span>
   <span id="sacGuideMainText" class="text-sm font-black text-amber-200 tracking-wide">请选择要献祭的己方随从</span>
 </div>
+
+<div id="svDetailPanel" class="interactive-zone hidden fixed left-8 top-20 z-[250] w-[380px] bg-slate-950/96 border-2 border-amber-400/90 rounded-2xl p-4 shadow-[0_12px_45px_rgba(0,0,0,0.92)] flex flex-col gap-3 max-h-[74vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-amber-500/35 pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span id="detEnergyBadge" class="w-8 h-8 rounded-full bg-emerald-600 border-2 border-emerald-300 flex items-center justify-center font-black text-base text-white shadow">2</span>
+          <div>
+            <div id="detCardName" class="text-lg font-black text-white leading-tight">赛博牧羊人</div>
+            <div id="detCardSub" class="text-xs text-amber-300 font-bold mt-0.5">随从 · 机械 · 稀有</div>
+          </div>
+        </div>
+        <button id="btnCloseDetail" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-xs font-bold">✕</button>
+      </div>
+
+      <div class="flex items-center justify-between bg-slate-900/95 rounded-xl px-3.5 py-2 text-xs border border-slate-800">
+        <div id="detCostsRow" class="flex items-center gap-2.5 font-bold"></div>
+        <div id="detStatsRow" class="flex items-center gap-2.5 font-black text-sm"></div>
+      </div>
+
+      <div id="detSegmentedEffects" class="flex flex-col gap-2 text-[13px] leading-relaxed"></div>
+
+      <!-- 新增：当卡牌获得效果时，在详细面板中一条条排列展示所有获得的附加效果 -->
+      <div id="detGrantedEffectsWrap" class="hidden flex flex-col gap-1.5 pt-2 border-t border-amber-500/35">
+        <div class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+          <span>✨ 附加效果 (已获得能力)</span>
+        </div>
+        <div id="detGrantedEffectsList" class="flex flex-col gap-1.5 text-xs"></div>
+      </div>
+
+      <div id="detActionBox" class="hidden pt-1">
+        <button id="btnDetailAction" class="w-full py-2.5 rounded-xl bg-gradient-to-b from-amber-500 to-amber-800 hover:from-amber-400 hover:to-amber-700 border border-amber-300 text-white font-black text-sm shadow-lg transition"></button>
+      </div>
+    </div>
 </body>
 </html>
 

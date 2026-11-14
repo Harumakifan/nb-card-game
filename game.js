@@ -1570,15 +1570,15 @@ async function showTriggeredEffectToast(cardData, triggeredClauseText, waitMs = 
   const feed = document.getElementById('svEffectFeed');
   if (!feed) return;
   const item = document.createElement('div');
-  item.className = 'sv-effect-toast rounded-r-xl px-4 py-3 lg:px-5 lg:py-3.5 flex items-center gap-3 lg:gap-4 w-[320px] lg:w-[440px] text-xs lg:text-sm';
+  item.className = 'sv-effect-toast rounded-r-xl px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3 lg:gap-4 w-[320px] lg:w-[500px] text-xs lg:text-base';
   const imgUri = getAnimeIllustrationDataURI(cardData);
   item.innerHTML = `
-    <div class="w-12 h-12 lg:w-16 lg:h-16 rounded-xl overflow-hidden border-2 border-amber-400 shrink-0 shadow-lg">
+    <div class="w-12 h-12 lg:w-20 lg:h-20 rounded-xl overflow-hidden border-2 border-amber-400 shrink-0 shadow-lg">
       <img src="${imgUri}" class="w-full h-full object-cover" alt="${cardData.name}"/>
     </div>
     <div class="flex flex-col min-w-0 flex-1">
-      <div class="text-sm lg:text-base font-black text-amber-300 truncate">${cardData.name}</div>
-      <div class="text-xs lg:text-sm text-slate-100 leading-snug line-clamp-3">${triggeredClauseText}</div>
+      <div class="text-sm lg:text-lg font-black text-amber-300 truncate">${cardData.name}</div>
+      <div class="text-xs lg:text-base text-slate-100 leading-snug line-clamp-3">${triggeredClauseText}</div>
     </div>
   `;
   feed.appendChild(item);
@@ -1589,7 +1589,7 @@ async function showTriggeredEffectToast(cardData, triggeredClauseText, waitMs = 
     item.style.opacity = '0';
     item.style.transition = 'opacity 0.25s ease';
     setTimeout(() => item.remove(), 260);
-  }, 2200);
+  }, 4200);
   if (waitMs > 0) await sleep(waitMs);
 }
 
@@ -1650,7 +1650,7 @@ function spawnFloatNumber(side, lane, text, color = '#fde047') {
   if (!target) return;
   const r = target.getBoundingClientRect();
   const el = document.createElement('div');
-  el.className = 'sv-float-num text-2xl';
+  el.className = 'sv-float-num sv-float-dmg-pop text-2xl';
   el.style.color = color;
   el.style.left = `${r.left + r.width / 2}px`;
   el.style.top = `${r.top + r.height / 3}px`;
@@ -2264,14 +2264,15 @@ window.addEventListener('mousemove', (e) => {
 
 window.addEventListener('mouseup', (e) => {
   if (!mulliganDrag.active || battle.mulliganLocked) return;
-  const { idx, startX, startY, moved } = mulliganDrag;
+  const { idx, inst, startX, startY, moved } = mulliganDrag;
   mulliganDrag = { active: false, idx: -1, inst: null, startX: 0, startY: 0, moved: false };
   document.getElementById('dragGhostBox').classList.add('hidden');
 
   if (!moved) {
     sfx.play('click');
-    battle.mulliganSwapped[idx] = !battle.mulliganSwapped[idx];
-    renderMulliganDualBox();
+    if (inst && typeof openCardDetailPanel === 'function') {
+      openCardDetailPanel(inst, 'hand', 0, -1, null, true);
+    }
     return;
   }
 
@@ -3083,6 +3084,7 @@ function setHandCollapsed(collapsed) {
   const hz = document.getElementById('playerHandZone');
   const btn = document.getElementById('btnToggleHandCollapse');
   if (hz) hz.classList.toggle('hand-collapsed', battle.handCollapsed);
+  document.getElementById('playerLeaderNode')?.classList.toggle('hand-expanded-hp', !battle.handCollapsed);
   if (btn) {
     btn.textContent = battle.handCollapsed ? '🔼 点击展开手牌' : '🔽 点击空地可收起手牌展示主战者';
   }
@@ -3401,11 +3403,14 @@ async function placeMinionOnBoardAnimated(side, inst, lane) {
       const singer = battle.board[side][l];
       if (singer && singer !== inst && singer.data.id === 'cmwghmf9xj9dv' && battle.board[side][lane] === inst) {
         await showTriggeredEffectToast(singer.data, `谢幕曲随从『${inst.data.name}』进场，将其破坏并使己方全体随从+1/+1！`, 240);
+        await playSynergyBeam(getLaneDOM(side, l), getLaneDOM(side, lane), '#f43f5e', 220);
         await destroyMinionAnimated(side, lane, false);
         for (let fl = 0; fl < 5; fl++) {
           const fm = battle.board[side][fl];
           if (fm && fm.data.type === 'minion') {
             fm.currentAtk += 1; fm.currentHp += 1; fm.maxHp += 1;
+            addGrantedEffect(fm, '来源：【摇滚骷髅乐团主唱】 → 谢幕曲随从进场 +1/+1');
+            await playSynergyBeam(getLaneDOM(side, l), getLaneDOM(side, fl), '#4ade80', 140);
             spawnFloatNumber(side, fl, '+1/+1', '#4ade80');
           }
         }
@@ -4954,7 +4959,7 @@ async function performMinionCombatAnimated(attackerSide, lane) {
         defender = null;
       }
 
-      if (!defender) {
+      if (!defender && battle.board[opp][tl] === null) {
         let guardLane = -1, bestDist = 99;
         for (let gl = 0; gl < 5; gl++) {
           const gm = battle.board[opp][gl];
@@ -6872,6 +6877,16 @@ async function runEnemyAITurnAnimated() {
             continue;
           }
         }
+      } else if (req === 'enemy_minion' || req === 'enemy_minion_hp3' || req === 'friendly_minion' || req === 'friendly_countdown') {
+        const locs = getValidTargetLocations(1, req, c.data.type === 'spell');
+        if (locs.length === 0) {
+          if (c.data.type === 'spell') continue;
+          targetValueScore -= 9000; // 随从无合法目标时不作为优先打出卡牌
+        } else {
+          effTarget = locs[0].lane;
+          effTargetSide = locs[0].side;
+          targetValueScore += 180;
+        }
       } else if (req === 'any_board_card') { // 堕天 (变身为 2/3 堕天使，价值 1+3*0.5 = 2.5)
         const locs = getValidTargetLocations(1, req, true);
         if (locs.length === 0) continue;
@@ -8013,6 +8028,29 @@ function buildHandCardDOM(cardData, inst = null, deckBadgeCount = 0) {
   return el;
 }
 
+
+function openCrestDetailPanel(cr, side) {
+  const panel = document.getElementById('svDetailPanel');
+  if (!panel || !cr) return;
+  const hasCd = (cr.countdown !== null && cr.countdown !== undefined);
+  document.getElementById('detEnergyBadge').textContent = hasCd ? String(cr.countdown) : '∞';
+  document.getElementById('detCardName').textContent = cr.name || '主战者纹章';
+  document.getElementById('detCardSub').textContent = `${side === 0 ? '我方' : '敌方'}主战者纹章 · ${hasCd ? `剩余倒计时 ${cr.countdown} 回合` : '永久生效'}`;
+  document.getElementById('detCostsRow').innerHTML = hasCd
+    ? `<span class="px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-400 text-cyan-200 font-black text-xs">⏳ 倒计时 ${cr.countdown}</span>`
+    : `<span class="px-2 py-0.5 rounded-full bg-amber-950 border border-amber-400 text-amber-200 font-black text-xs">♾️ 永久纹章</span>`;
+  document.getElementById('detStatsRow').innerHTML = '';
+  const segBox = document.getElementById('detSegmentedEffects');
+  const srcName = cr.cardData ? cr.cardData.name : '';
+  const descHtml = formatInteractiveDetailHTML(cr.desc || '（无效果说明）', '');
+  const srcHtml = srcName ? `<div class="mt-2 pt-2 border-t border-slate-700/80 text-xs text-slate-300">来源卡牌：${formatInteractiveDetailHTML('『' + srcName + '』', '')}</div>` : '';
+  segBox.innerHTML = `<div class="p-3 rounded-xl bg-indigo-950/65 border border-amber-400/70 text-amber-100 text-sm leading-relaxed font-bold">${descHtml}${srcHtml}</div>`;
+  bindDetailInteractiveLinks(segBox);
+  document.getElementById('detGrantedEffectsWrap')?.classList.add('hidden');
+  document.getElementById('detActionBox')?.classList.add('hidden');
+  panel.classList.remove('hidden');
+}
+
 function renderCrestsRowDOM(side) {
   const row = document.getElementById(side === 0 ? 'playerCrestsRow' : 'enemyCrestsRow');
   if (!row) return;
@@ -8030,20 +8068,17 @@ function renderCrestsRowDOM(side) {
       const badge = document.createElement('div');
       badge.className = 'sv-crest-badge interactive-zone pointer-events-auto';
       badge.dataset.crestId = cr.id;
-      badge.title = `【${cr.name}】(倒计时 ${cr.countdown})\n${cr.desc}`;
+      const hasCd = (cr.countdown !== null && cr.countdown !== undefined);
+      badge.title = `【${cr.name}】${hasCd ? `(倒计时 ${cr.countdown})` : '(永久纹章)'}\n${cr.desc}`;
       const imgUri = cr.cardData ? getAnimeIllustrationDataURI(cr.cardData) : '';
       badge.innerHTML = `
         ${imgUri ? `<img src="${imgUri}" class="w-full h-full object-cover rounded-full opacity-95"/>` : `<span class="text-lg">🛡️</span>`}
-        <span class="sv-crest-num-gem">${cr.countdown}</span>
+        ${hasCd ? `<span class="sv-crest-num-gem">${cr.countdown}</span>` : ''}
       `;
       badge.addEventListener('click', (e) => {
         e.stopPropagation();
         sfx.play('click');
-        if (cr.cardData) {
-          const dummyInst = createCardInstance(cr.cardData.id, side);
-          addGrantedEffect(dummyInst, `来源：【主战者纹章】 → 当前剩余倒计时：${cr.countdown} 回合`);
-          openCardDetailPanel(dummyInst, 'crest', side, -1);
-        }
+        openCrestDetailPanel(cr, side);
       });
       slot.appendChild(badge);
     }
@@ -8057,6 +8092,7 @@ function syncGlobalAnimPhases() {
   document.documentElement.style.setProperty('--anim-sync-38', `-${(t % 3.8).toFixed(3)}s`);
 }
 function renderAllBattleUI() {
+  document.getElementById('playerLeaderNode')?.classList.toggle('hand-expanded-hp', !battle.handCollapsed);
   syncGlobalAnimPhases();
   const pst = battle.leaders[0];
   const est = battle.leaders[1];
@@ -8517,8 +8553,22 @@ function renderDeckEditor() {
     const ea = a.energy || 0, eb = b.energy || 0;
     const va = typeof getCardCostValue === 'function' ? getCardCostValue(a) : ea;
     const vb = typeof getCardCostValue === 'function' ? getCardCostValue(b) : eb;
-    if (sortVal === 'energy_asc') return ea - eb || va - vb || a.name.localeCompare(b.name, 'zh-CN');
-    if (sortVal === 'energy_desc') return eb - ea || vb - va || a.name.localeCompare(b.name, 'zh-CN');
+    const eGroup = (x) => {
+      const xe = x.energy || 0, xs = x.sacrifice || 0, xb = x.bones || 0;
+      if (xe === 0 && xs === 0 && xb === 0) return 0; // 完全无费用排最前
+      if (xe > 0) return 1;                            // 有能量费用按能量排
+      return 2;                                        // 无能量的骨头/祭品排最后
+    };
+    if (sortVal === 'energy_asc') {
+      const ga = eGroup(a), gb = eGroup(b);
+      if (ga !== gb) return ga - gb;
+      return ea - eb || va - vb || a.name.localeCompare(b.name, 'zh-CN');
+    }
+    if (sortVal === 'energy_desc') {
+      const ga = eGroup(a), gb = eGroup(b);
+      if (ga !== gb) return ga === 1 ? -1 : (gb === 1 ? 1 : ga - gb);
+      return eb - ea || vb - va || a.name.localeCompare(b.name, 'zh-CN');
+    }
     if (sortVal === 'value_asc') return va - vb || ea - eb || a.name.localeCompare(b.name, 'zh-CN');
     if (sortVal === 'value_desc') return vb - va || eb - ea || a.name.localeCompare(b.name, 'zh-CN');
     if (sortVal === 'atk_desc') return (b.atk || 0) - (a.atk || 0) || vb - va;

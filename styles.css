@@ -2087,10 +2087,10 @@
 
   /* 三费统一宝石胶囊 */
   .sv-cost-gem {
-    min-width: 22px; height: 22px; padding: 0 5px;
+    min-width: 25px; height: 25px; padding: 0 6px;
     border-radius: 7px;
     display: inline-flex; align-items: center; justify-content: center; gap: 2px;
-    font-size: 11px; font-weight: 900; line-height: 1;
+    font-size: 13.5px; font-weight: 900; line-height: 1;
     box-shadow: 0 2px 6px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.35);
     border: 1.5px solid rgba(255,255,255,0.55);
   }
@@ -2175,10 +2175,11 @@
 
   /* 圆形统一三费徽章（严格单行不折行） */
   .sv-cost-circle {
-    width: 24px; height: 24px;
+    width: 27px; height: 27px;
     border-radius: 9999px;
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 900; line-height: 1;
+    font-size: 14px; font-weight: 900; line-height: 1;
+    letter-spacing: -0.3px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.88), inset 0 1px 0 rgba(255,255,255,0.4);
     border: 1.5px solid rgba(255,255,255,0.65);
     flex-shrink: 0;
@@ -2189,10 +2190,11 @@
 
   /* 圆形统一稀有度徽章（绝对居中，等宽等高） */
   .sv-rarity-circle {
-    width: 24px; height: 24px;
+    width: 27px; height: 27px;
     border-radius: 9999px;
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 900; line-height: 1;
+    font-size: 14px; font-weight: 900; line-height: 1;
+    letter-spacing: -0.3px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.85);
     flex-shrink: 0;
   }
@@ -2293,15 +2295,15 @@
 
   /* === v50 卡牌价值纯数字徽章（位于卡面正下方，与左上角费用和卡图右下角倒计时分离） === */
   .sv-value-badge {
-    min-width: 26px;
-    height: 22px;
-    padding: 0 6px;
+    min-width: 28px;
+    height: 24px;
+    padding: 0 7px;
     border-radius: 9999px;
     background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
     border: 1.5px solid #fbbf24;
     color: #fde68a;
     font-weight: 900;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1;
     display: inline-flex;
     align-items: center;
@@ -2409,4 +2411,58 @@
 .sv-hand-card.sv-hand-playable-enh::after {
   border: 2.5px solid #fde047;
   animation: hand-playable-enh-pulse 0.95s ease-in-out infinite alternate;
+}
+
+/* === v62 纹章数字清晰化、主战者与血量框美化、手牌放大与动态避让、攻击与伤害特效美化 === */
+.sv-crest-num-gem {
+  background: linear-gradient(135deg, #090d16 0%, #1e293b 100%) !important;
+  color: #fde047 !important;
+  border: 2px solid #fbbf24 !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  text-shadow: 0 1px 3px #000000 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 10px rgba(251, 191, 36, 0.55) !important;
+}
+
+.sv-leader-hp-box {
+  background: linear-gradient(180deg, #4c0519 0%, #1e1b4b 55%, #090d16 100%) !important;
+  border: 2.5px solid #fde047 !important;
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.78), 0 12px 28px rgba(0, 0, 0, 0.95), inset 0 2px 8px rgba(253, 224, 71, 0.35) !important;
+}
+#enemyAvatarCanvasWrap,
+#playerLeaderNode > div:nth-child(2) {
+  box-shadow: 0 0 28px rgba(56, 189, 248, 0.32), 0 12px 36px rgba(0, 0, 0, 0.92), inset 0 0 18px rgba(251, 191, 36, 0.22) !important;
+}
+#playerLeaderNode > div:nth-child(3) {
+  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#playerLeaderNode.hand-expanded-hp > div:nth-child(3) {
+  transform: translate(236px, -172px) scale(1.08);
+  z-index: 65 !important;
+}
+@media (max-width: 1023px) {
+  #playerLeaderNode.hand-expanded-hp > div:nth-child(3) {
+    transform: translate(118px, -116px) scale(1.0);
+  }
+}
+@media (min-width: 1024px) {
+  #playerHandZone .sv-hand-card {
+    width: 146px !important;
+    height: 202px !important;
+  }
+}
+
+@keyframes floatDmgPop {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.65); }
+  22% { opacity: 1; transform: translate(-50%, -12px) scale(1.32); }
+  55% { opacity: 1; transform: translate(-50%, -28px) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -56px) scale(0.92); }
+}
+.sv-float-dmg-pop {
+  animation: floatDmgPop 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  font-size: 26px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.5px;
+  -webkit-text-stroke: 1.5px #020617;
+  text-shadow: 0 3px 0 #020617, 0 0 16px currentColor !important;
 }
