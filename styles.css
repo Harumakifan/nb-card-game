@@ -2497,9 +2497,18 @@
 }
 #playerLeaderNode > div:nth-child(1) {
   position: absolute !important;
-  right: calc(100% - 12px) !important;
-  bottom: 14px !important;
+  right: calc(100% + 8px) !important;
+  bottom: 22px !important;
   margin-right: 0 !important;
+  width: max-content !important;
+  white-space: nowrap !important;
+}
+#playerTurnSideWrap {
+  position: absolute !important;
+  left: calc(100% + 52px) !important;
+  bottom: 24px !important;
+  width: max-content !important;
+  white-space: nowrap !important;
 }
 #playerLeaderNode > div:nth-child(2) {
   width: 196px !important;
