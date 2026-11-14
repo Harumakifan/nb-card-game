@@ -1970,3 +1970,71 @@
       margin: 0 !important;
     }
   }
+
+  /* === v41 卡牌稀有度纹理、种类框型、高对比攻防徽章、主战者血量框 === */
+  .sv-rarity-common {
+    background-image: repeating-linear-gradient(135deg, rgba(148,163,184,0.07) 0 4px, transparent 4px 11px), linear-gradient(165deg, #1e293b 0%, #0b1120 100%) !important;
+    border-color: #94a3b8 !important;
+  }
+  .sv-rarity-rare {
+    background-image: repeating-linear-gradient(45deg, rgba(56,189,248,0.10) 0 2px, transparent 2px 9px), repeating-linear-gradient(-45deg, rgba(56,189,248,0.07) 0 2px, transparent 2px 9px), linear-gradient(165deg, #0f294a 0%, #091326 100%) !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 8px 22px rgba(2,132,199,0.28), inset 0 0 12px rgba(56,189,248,0.16) !important;
+  }
+  .sv-rarity-epic {
+    background-image: radial-gradient(circle at 50% 50%, rgba(192,132,252,0.18) 1.5px, transparent 1.5px), repeating-linear-gradient(60deg, rgba(168,85,247,0.08) 0 3px, transparent 3px 12px), linear-gradient(165deg, #2b144d 0%, #0f0920 100%) !important;
+    background-size: 12px 12px, auto, auto !important;
+    border-color: #c084fc !important;
+    box-shadow: 0 8px 24px rgba(147,51,234,0.34), inset 0 0 14px rgba(192,132,252,0.20) !important;
+  }
+  .sv-rarity-legend {
+    background-image: repeating-linear-gradient(120deg, rgba(251,191,36,0.15) 0 3px, transparent 3px 10px), radial-gradient(circle at 50% 18%, rgba(253,224,71,0.24), transparent 62%), linear-gradient(165deg, #3b2608 0%, #140e05 100%) !important;
+    border-color: #fbbf24 !important;
+    box-shadow: 0 0 22px rgba(251,191,36,0.42), inset 0 0 16px rgba(253,224,71,0.24) !important;
+  }
+
+  /* 卡牌种类框型区分 */
+  .sv-card-type-minion { border-radius: 13px !important; }
+  .sv-card-type-spell { border-radius: 22px 22px 18px 18px !important; }
+  .sv-card-type-spell .sv-card-art-box { border-radius: 18px !important; border-color: rgba(129,140,248,0.65) !important; }
+  .sv-card-type-amulet { border-radius: 8px 20px 8px 20px !important; }
+  .sv-card-type-amulet .sv-card-art-box { border-radius: 6px 16px 6px 16px !important; border-color: rgba(52,211,153,0.65) !important; }
+
+  /* 高对比暗底攻防徽章（受伤红字在黑曜石底色上极度醒目） */
+  .sv-atk-badge {
+    background: linear-gradient(180deg, #1e3a8a 0%, #090d16 100%) !important;
+    border: 2px solid #60a5fa !important;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.8), inset 0 1px 0 rgba(147,197,253,0.4) !important;
+  }
+  .sv-hp-badge {
+    background: linear-gradient(180deg, #1f2937 0%, #090d16 100%) !important;
+    border: 2px solid #fb7185 !important;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.8), inset 0 1px 0 rgba(253,164,175,0.35) !important;
+  }
+  .sv-stat-dmg {
+    color: #ff4d6d !important;
+    text-shadow: 0 1px 2px #000, 0 0 8px rgba(255,77,109,0.75) !important;
+  }
+
+  /* 主战者专属暗金护盾血量框 */
+  .sv-leader-hp-box {
+    position: relative;
+    background: linear-gradient(180deg, #1e293b 0%, #090d16 100%) !important;
+    border: 2.5px solid #fbbf24 !important;
+    box-shadow: 0 0 0 2px rgba(244,63,94,0.65), 0 10px 26px rgba(0,0,0,0.92), inset 0 1px 0 rgba(254,240,138,0.45) !important;
+    border-radius: 14px 14px 24px 24px !important;
+  }
+  .sv-leader-hp-box::before {
+    content: '❤️';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    line-height: 1;
+    background: #090d16;
+    border: 1.5px solid #fbbf24;
+    border-radius: 999px;
+    padding: 2px 5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.85);
+  }

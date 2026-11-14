@@ -7026,7 +7026,7 @@ function buildFollowerTokenDOM(inst, side, lane) {
       </div>
     ` : `
       <div class="relative z-20 flex items-center justify-between px-1.5 pb-1.5">
-        <div class="w-9 h-10 rounded-xl bg-gradient-to-b from-sky-600 to-slate-950 border-2 border-amber-200 flex items-center justify-center text-base shadow-lg">
+        <div class="w-9 h-10 rounded-xl sv-atk-badge flex items-center justify-center text-base">
           <span class="sv-stat-num ${inst.currentAtk > (c.atk || 0) ? 'sv-stat-buff' : (inst.currentAtk < (c.atk || 0) ? 'sv-stat-debuff' : 'sv-stat-normal')}">${inst.currentAtk}</span>
         </div>
         ${bottomIcons.length > 0 ? `
@@ -7034,7 +7034,7 @@ function buildFollowerTokenDOM(inst, side, lane) {
             ${bottomIcons.map((item, idx) => `<span class="sv-status-icon-item ${idx === activeIdx ? 'active-icon' : ''}">${item.icon}</span>`).join('')}
           </div>
         ` : `<div class="w-4"></div>`}
-        <div class="w-9 h-10 rounded-xl bg-gradient-to-b from-rose-800 via-slate-900 to-slate-950 border-2 border-amber-200 flex items-center justify-center text-base shadow-lg">
+        <div class="w-9 h-10 rounded-xl sv-hp-badge flex items-center justify-center text-base">
           <span class="sv-stat-num ${inst.currentHp < inst.maxHp ? 'sv-stat-dmg' : (inst.currentHp > (c.hp || 1) ? 'sv-stat-buff' : 'sv-stat-normal')}">${inst.currentHp}</span>
         </div>
       </div>
@@ -7066,48 +7066,57 @@ function buildHandCardDOM(cardData, inst = null, deckBadgeCount = 0) {
   const maxHpVal = inst ? inst.maxHp : cardData.hp;
   const imgUri = getAnimeIllustrationDataURI(cardData);
 
+  const kwTags = [];
+  (cardData.keywords || []).forEach(kw => {
+    if (!kw || !kw.k) return;
+    if (kw.k === '倒计时') return;
+    const label = kw.v > 0 && ['荆棘','连击','爆能强化','多重攻击'].includes(kw.k) ? `${kw.k}${kw.v}` : kw.k;
+    if (!kwTags.includes(label)) kwTags.push(label);
+  });
+  const kwDisplay = kwTags.slice(0, 3).map(t => `<span class="px-1.5 py-0.2 rounded bg-slate-950/90 border border-amber-400/55 text-[9px] font-black text-amber-200 shadow">${t}</span>`).join('')
+    + (kwTags.length > 3 ? `<span class="px-1 py-0.2 rounded bg-slate-950/90 border border-slate-500 text-[9px] font-bold text-slate-300">+${kwTags.length - 3}</span>` : '');
+
   el.innerHTML = `
-    <div class="relative z-10 flex items-center justify-between gap-1">
+    <div class="relative z-10 flex items-center gap-1">
       <div class="w-7 h-7 rounded-full ${effE < cardData.energy ? 'bg-gradient-to-b from-cyan-400 to-emerald-700' : 'bg-gradient-to-b from-emerald-400 to-emerald-800'} border-2 border-amber-200 flex items-center justify-center font-black text-sm text-white shadow shrink-0">
         ${effE}
       </div>
-      <div class="flex-1 bg-slate-950/92 border border-amber-400/40 rounded px-1.5 py-0.5 text-[10px] font-black text-white truncate text-center">
+      <div class="flex-1 bg-slate-950/90 border border-amber-400/45 rounded-md px-1.5 py-0.5 text-[11px] font-black text-white leading-tight text-center line-clamp-2 min-h-[26px] flex items-center justify-center">
         ${cardData.name}
       </div>
-      ${deckBadgeCount > 0
-        ? `<span class="px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[10px]">×${deckBadgeCount}</span>`
-        : `<span class="px-1.5 py-0.5 rounded text-[9px] font-black ${rarityBadgeCls}">${cardData.rarity}</span>`}
     </div>
 
-    ${extraCosts.length > 0 ? `<div class="relative z-20 flex flex-wrap items-center gap-1 mt-0.5 pl-0.5">${extraCosts.join('')}</div>` : ''}
-
-    <div class="relative my-1 rounded-lg overflow-hidden border border-amber-300/35 flex-1 min-h-[72px]">
+    <div class="sv-card-art-box relative my-1 rounded-lg overflow-hidden border-2 border-amber-300/40 flex-1 min-h-[92px]">
       <img src="${imgUri}" class="w-full h-full object-cover" alt="${cardData.name}"/>
-    </div>
-
-    <div class="relative z-10 bg-slate-950/92 border border-slate-700/80 rounded px-1.5 py-1 text-[9px] text-slate-100 leading-tight line-clamp-2 min-h-[26px]">
-      ${getCardDisplayText(cardData, inst)}
+      ${extraCosts.length > 0 ? `<div class="absolute top-1 left-1 z-20 flex flex-wrap items-center gap-1">${extraCosts.join('')}</div>` : ''}
+      ${deckBadgeCount > 0 ? `<span class="absolute top-1 right-1 z-20 px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[10px] shadow">×${deckBadgeCount}</span>` : ''}
+      ${kwDisplay ? `<div class="absolute bottom-1 inset-x-1 z-20 flex flex-wrap items-center justify-center gap-1">${kwDisplay}</div>` : ''}
     </div>
 
     ${cardData.type === 'minion' ? `
-      <div class="relative z-10 flex items-center justify-between pt-0.5">
-        <div class="w-6 h-6 rounded bg-gradient-to-b from-sky-600 to-slate-950 border border-amber-200 flex items-center justify-center text-xs shadow">
+      <div class="relative z-10 flex items-center justify-between gap-1 pt-0.5">
+        <div class="w-7 h-7 rounded-lg sv-atk-badge flex items-center justify-center text-sm shrink-0">
           <span class="sv-stat-num ${atkVal > (cardData.atk || 0) ? 'sv-stat-buff' : (atkVal < (cardData.atk || 0) ? 'sv-stat-debuff' : 'sv-stat-normal')}">${atkVal}</span>
         </div>
-        <span class="text-[9px] font-bold text-amber-300/95 truncate max-w-[82px]">${cardData.race || '随从'}</span>
-        <div class="w-6 h-6 rounded bg-gradient-to-b from-rose-800 via-slate-900 to-slate-950 border border-amber-200 flex items-center justify-center text-xs shadow">
+        <div class="flex-1 flex flex-col items-center min-w-0">
+          <span class="px-1.5 py-0.2 rounded text-[8.5px] font-black ${rarityBadgeCls}">${cardData.rarity}</span>
+          <span class="text-[9px] font-bold text-amber-200/95 truncate max-w-full">${cardData.race || '随从'}</span>
+        </div>
+        <div class="w-7 h-7 rounded-lg sv-hp-badge flex items-center justify-center text-sm shrink-0">
           <span class="sv-stat-num ${inst && hpVal < maxHpVal ? 'sv-stat-dmg' : (hpVal > (cardData.hp || 1) ? 'sv-stat-buff' : 'sv-stat-normal')}">${hpVal}</span>
         </div>
       </div>
     ` : (cardData.type === 'amulet' ? `
       <div class="relative z-10 flex items-center justify-between pt-0.5 px-1">
-        <span class="px-1.5 py-0.2 rounded bg-emerald-900 border border-emerald-400/70 text-[9px] font-black text-emerald-200">⛩️ 护符</span>
-        <span class="text-[9px] font-bold text-amber-300/95 truncate">${cardData.race || '无种族'}</span>
+        <span class="px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-400/80 text-[9px] font-black text-emerald-200">⛩️ 护符</span>
+        <span class="px-1.5 py-0.2 rounded text-[8.5px] font-black ${rarityBadgeCls}">${cardData.rarity}</span>
+        <span class="text-[9px] font-bold text-amber-200/95 truncate">${cardData.race || '无种族'}</span>
       </div>
     ` : `
       <div class="relative z-10 flex items-center justify-between pt-0.5 px-1">
-        <span class="px-1.5 py-0.2 rounded bg-purple-900 border border-purple-400/70 text-[9px] font-black text-purple-200">✨ 法术</span>
-        <span class="text-[9px] font-bold text-amber-300/95 truncate">${cardData.race || '无种族'}</span>
+        <span class="px-1.5 py-0.5 rounded bg-indigo-950 border border-indigo-400/80 text-[9px] font-black text-indigo-200">✨ 法术</span>
+        <span class="px-1.5 py-0.2 rounded text-[8.5px] font-black ${rarityBadgeCls}">${cardData.rarity}</span>
+        <span class="text-[9px] font-bold text-amber-200/95 truncate">${cardData.race || '无种族'}</span>
       </div>
     `)}
   `;
@@ -7157,7 +7166,9 @@ function renderAllBattleUI() {
   const est = battle.leaders[1];
   if (!pst || !est) return;
 
-  document.getElementById('uiEnemyHp').textContent = est.hp;
+  const eHpEl = document.getElementById('uiEnemyHp');
+  eHpEl.textContent = est.hp;
+  eHpEl.style.color = est.hp < (est.maxHp || 30) ? '#ff4d6d' : '#ffffff';
   document.getElementById('uiEnemyBones').textContent = est.bones;
   document.getElementById('uiEnemyHandCnt').textContent = est.hand.length;
   document.getElementById('uiEnemyDeckCnt').textContent = est.deck.length;
@@ -7167,7 +7178,9 @@ function renderAllBattleUI() {
   document.getElementById('uiEnemyEnergy').textContent = est.energy;
   document.getElementById('uiEnemyMaxEnergy').textContent = est.maxEnergy;
 
-  document.getElementById('uiPlayerHp').textContent = pst.hp;
+  const pHpEl = document.getElementById('uiPlayerHp');
+  pHpEl.textContent = pst.hp;
+  pHpEl.style.color = pst.hp < (pst.maxHp || 30) ? '#ff4d6d' : '#ffffff';
   document.getElementById('uiPlayerBones').textContent = pst.bones;
   document.getElementById('uiPlayerHandCnt').textContent = pst.hand.length;
   document.getElementById('uiPlayerDeckCnt').textContent = pst.deck.length;
