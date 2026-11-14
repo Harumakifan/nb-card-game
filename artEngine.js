@@ -597,6 +597,31 @@
     const h = hashStr(id + '_' + name);
 
     // ================= 1. 重绘原本过于敷衍的龙族/恐龙/野兽/亡灵/法术/护符 =================
+    if (name === '肉山魔') {
+      fillRadialBg(ctx, '#991b1b', '#270909', '#050811');
+      drawParticles(ctx, h, '#f43f5e', 24, 'sparks');
+      // 巨型缝合肉山轮廓
+      const bodyG = ctx.createRadialGradient(140, 128, 14, 140, 132, 92);
+      bodyG.addColorStop(0, '#dc2626'); bodyG.addColorStop(0.55, '#7f1d1d'); bodyG.addColorStop(1, '#1c0a0a');
+      ctx.fillStyle = bodyG; ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(46, 218); ctx.quadraticCurveTo(38, 120, 86, 86);
+      ctx.quadraticCurveTo(140, 56, 194, 86);
+      ctx.quadraticCurveTo(242, 120, 234, 218);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      // 缝合线与嵌入白骨
+      ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(96, 108); ctx.lineTo(184, 154); ctx.stroke();
+      for (let i = 0; i < 5; i++) {
+        const sx = 104 + i * 18, sy = 112 + i * 9;
+        ctx.beginPath(); ctx.moveTo(sx - 4, sy + 7); ctx.lineTo(sx + 4, sy - 7); ctx.stroke();
+      }
+      drawSkull(ctx, 140, 74, 0.88, { eyeCol: '#ef4444', horns: true, boneCol: '#fecaca', shadowCol: '#7f1d1d' });
+      drawSkull(ctx, 84, 136, 0.54, { eyeCol: '#fde047', boneCol: '#e2e8f0' });
+      drawSkull(ctx, 196, 138, 0.54, { eyeCol: '#fde047', boneCol: '#e2e8f0' });
+      return true;
+    }
+
     if (name === '巨型秃鹫') {
       fillSkyBg(ctx, '#1e1b4b', '#4c1d95', '#090d16');
       drawMoon(ctx, 214, 48, 28, '#fde047');
