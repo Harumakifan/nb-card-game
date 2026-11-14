@@ -90,6 +90,11 @@ function getAnimeIllustrationDataURI(cardData) {
   cvs.width = 280;
   cvs.height = 220;
   const ctx = cvs.getContext('2d');
+  if (typeof window !== 'undefined' && typeof window.renderCustomCardArt === 'function' && window.renderCustomCardArt(ctx, cardData)) {
+    const dataUrl = cvs.toDataURL('image/png');
+    artCache[key] = dataUrl;
+    return dataUrl;
+  }
 
   // 辅助绘制渐变底图與光效
   function fillRadialBg(c1, c2, c3 = '#050811') {
@@ -7214,6 +7219,7 @@ const KEYWORD_GLOSSARY = {
   '亡者召还': '从己方墓地中复活 1 张满足条件的随从（优先最高价值）。按【价值X】判定时不限费用体系；按【能量X/祭品X/骨头X】等价值以外费用体系判定时，仅限复活该单一费用体系的随从。',
   '消失': '直接移出本局对战，不进入墓地、不增加骨头且不触发【谢幕曲】。',
   '随从进场时': '无论从手牌打出还是被效果召唤进入战场，都会立即触发。',
+  '回合开始时': '己方回合开始、抽牌后自动触发的效果。',
   '回合结束时': '在己方回合结束结算阶段触发。',
   '攻击时': '该随从每次发起攻击前触发。',
   '纹章': '附着在主战者身上的持久/倒计时效果徽记，上限5个，同名不叠加。'
@@ -7223,25 +7229,74 @@ let detailNavStack = [];
 
 function formatInteractiveDetailHTML(rawText, currentCardName = '') {
   let safe = String(rawText || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const placeholders = [];
+  const stash = (html) => {
+    const tok = `@@CFTOK_${placeholders.length}@@`;
+    placeholders.push(html);
+    return tok;
+  };
+
   // 1. 关键词 pill: 【xxx】
   safe = safe.replace(/【([^】]+)】/g, (full, inner) => {
     const baseKw = inner.split('_')[0].split('：')[0].trim();
     const matchedKey = Object.keys(KEYWORD_GLOSSARY).find(k => baseKw === k || baseKw.startsWith(k));
     if (matchedKey) {
-      return `<button type="button" class="cf-kw-link" data-kw="${matchedKey}" title="点击查看【${matchedKey}】词条说明">【${inner}】</button>`;
+      return stash(`<button type="button" class="cf-kw-link" data-kw="${matchedKey}" title="点击查看【${matchedKey}】词条说明">【${inner}】</button>`);
     }
-    return `<span class="px-1 rounded bg-amber-950/70 border border-amber-500/40 text-amber-200 font-bold">【${inner}】</span>`;
+    return stash(`<span class="px-1 rounded bg-amber-950/70 border border-amber-500/40 text-amber-200 font-bold">【${inner}】</span>`);
   });
-  // 2. 卡牌名 pill: 『xxx』
+
+  // 2. 显式卡牌名 pill: 『xxx』
   safe = safe.replace(/『([^』]+)』/g, (full, cName) => {
     const targetCard = allCards.find(x => x.name === cName);
     if (targetCard && cName !== currentCardName) {
-      return `<button type="button" class="cf-card-link" data-card-name="${cName}" title="点击查看『${cName}』卡牌详情">『${cName}』</button>`;
+      return stash(`<button type="button" class="cf-card-link" data-card-name="${cName}" title="点击查看『${cName}』卡牌详情">『${cName}』</button>`);
     }
-    return `<span class="text-cyan-300 font-black">『${cName}』</span>`;
+    return stash(`<span class="text-cyan-300 font-black">『${cName}』</span>`);
   });
-  // 3. 数值高亮 (+X/+Y, X点伤害, 倒计时-X, 骨头+X)
-  safe = safe.replace(/([+-]\d+\/[+-]?\d+|倒计时[+-]\d+|骨头[+-]\d+|\d+点(?:伤害|生命值))/g, '<b class="text-emerald-300 font-black">$1</b>');
+
+  // 3. 自动识别未加『』的关联卡牌名（按长度降序，避免短名误截断长名）
+  const refNames = allCards
+    .map(x => x.name)
+    .filter(n => n && n.length >= 2 && n !== currentCardName);
+  const aliasMap = { '骷髅士兵': '骷髅' };
+  const allMatchKeys = Array.from(new Set([...refNames, ...Object.keys(aliasMap)]))
+    .filter(n => n !== currentCardName)
+    .sort((a, b) => b.length - a.length);
+  if (allMatchKeys.length > 0) {
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const nameRe = new RegExp('(' + allMatchKeys.map(esc).join('|') + ')', 'g');
+    safe = safe.replace(/@@CFTOK_\d+@@|[^@]+/g, (seg) => {
+      if (seg.startsWith('@@CFTOK_')) return seg;
+      return seg.replace(nameRe, (m) => {
+        const realName = aliasMap[m] || m;
+        if (!allCards.some(x => x.name === realName) || realName === currentCardName) return m;
+        return stash(`<button type="button" class="cf-card-link" data-card-name="${realName}" title="点击查看『${realName}』卡牌详情">『${m}』</button>`);
+      });
+    });
+  }
+
+  // 4. 自动识别未加【】的常见关键词（如 荆棘_2、获得毁灭）
+  safe = safe.replace(/@@CFTOK_\d+@@|[^@]+/g, (seg) => {
+    if (seg.startsWith('@@CFTOK_')) return seg;
+    return seg.replace(/(荆棘_\d+|防空|毁灭|疾驰|突进|守护|必杀|吸血|潜伏|爆能强化_[^，。\n]+)/g, (kwText) => {
+      const baseKw = kwText.split('_')[0].trim();
+      const matchedKey = Object.keys(KEYWORD_GLOSSARY).find(k => baseKw === k || baseKw.startsWith(k));
+      if (!matchedKey) return kwText;
+      return stash(`<button type="button" class="cf-kw-link" data-kw="${matchedKey}" title="点击查看【${matchedKey}】词条说明">【${kwText}】</button>`);
+    });
+  });
+
+  // 5. 数值高亮 (+X/+Y, X点伤害, 倒计时-X, 骨头+X)
+  safe = safe.replace(/@@CFTOK_\d+@@|[^@]+/g, (seg) => {
+    if (seg.startsWith('@@CFTOK_')) return seg;
+    return seg.replace(/([+-]\d+\/[+-]?\d+|倒计时[+-]\d+|骨头[+-]\d+|\d+点(?:伤害|生命值))/g, '<b class="text-emerald-300 font-black">$1</b>');
+  });
+
+  // 还原占位符
+  for (let i = 0; i < placeholders.length; i++) {
+    safe = safe.replace(`@@CFTOK_${i}@@`, placeholders[i]);
+  }
   return safe;
 }
 
@@ -8334,32 +8389,79 @@ function renderDeckEditor() {
   const grid = document.getElementById('deckGalleryGrid');
   grid.innerHTML = '';
 
-  allCards.forEach(c => {
-    if (!showTokens && c.isToken) return;
-    if (deckFilter === '龙族' && !hasRace(c, '龙族')) return;
-    if (deckFilter === '机械' && !isMechCard(c)) return;
-    if (deckFilter === '亡灵' && !hasRace(c, '亡灵')) return;
-    if (deckFilter === '法术' && c.type !== 'spell') return;
-    if (deckFilter === '护符' && c.type !== 'amulet') return;
+  const sortVal = document.getElementById('selDeckSort')?.value || 'value_asc';
+  const rarityRank = { '普通': 1, '稀有': 2, '史诗': 3, '传说': 4 };
+  const basePool = allCards.filter(c => showTokens || !c.isToken);
+  const filteredCards = basePool.filter(c => {
+    if (deckFilter === '随从' && c.type !== 'minion') return false;
+    if (deckFilter === '龙族' && !hasRace(c, '龙族')) return false;
+    if (deckFilter === '机械' && !isMechCard(c)) return false;
+    if (deckFilter === '亡灵' && !hasRace(c, '亡灵')) return false;
+    if (deckFilter === '无种族' && c.race && c.race.trim()) return false;
+    if (deckFilter === '法术' && c.type !== 'spell') return false;
+    if (deckFilter === '护符' && c.type !== 'amulet') return false;
     if (typeof deckAdvFilter !== 'undefined') {
       if (deckAdvFilter.cost !== 'all') {
-        if (deckAdvFilter.cost === '7+') { if ((c.energy || 0) < 7) return; }
-        else if ((c.energy || 0) !== parseInt(deckAdvFilter.cost, 10)) return;
+        const cv = typeof getCardCostValue === 'function' ? getCardCostValue(c) : (c.energy || 0);
+        if (deckAdvFilter.cost === '0-1') { if (cv > 1) return false; }
+        else if (deckAdvFilter.cost === '7-8') { if (cv < 7 || cv > 8) return false; }
+        else if (deckAdvFilter.cost === '9+') { if (cv < 9) return false; }
+        else if (Math.round(cv) !== parseInt(deckAdvFilter.cost, 10)) return false;
+      }
+      if (deckAdvFilter.system && deckAdvFilter.system !== 'all') {
+        const hasE = (c.energy || 0) > 0;
+        const hasS = (c.sacrifice || 0) > 0;
+        const hasB = (c.bones || 0) > 0;
+        const cntSys = (hasE ? 1 : 0) + (hasS ? 1 : 0) + (hasB ? 1 : 0);
+        if (deckAdvFilter.system === 'energy_only' && !(hasE && !hasS && !hasB)) return false;
+        if (deckAdvFilter.system === 'sac_only' && !(!hasE && hasS && !hasB)) return false;
+        if (deckAdvFilter.system === 'bones_only' && !(!hasE && !hasS && hasB)) return false;
+        if (deckAdvFilter.system === 'multi' && cntSys < 2) return false;
+        if (deckAdvFilter.system === 'free' && cntSys !== 0) return false;
       }
       if (deckAdvFilter.race !== 'all') {
-        if (deckAdvFilter.race === '无种族') { if (c.race && c.race.trim()) return; }
-        else if (deckAdvFilter.race === '机械') { if (!isMechCard(c)) return; }
-        else if (!hasRace(c, deckAdvFilter.race)) return;
+        const races = (c.race || '').split(/[、,，/\s]+/).filter(Boolean);
+        if (deckAdvFilter.race === '无种族') { if (races.length > 0) return false; }
+        else if (deckAdvFilter.race === '多族') { if (races.length < 2) return false; }
+        else if (deckAdvFilter.race === '机械') { if (!isMechCard(c)) return false; }
+        else if (deckAdvFilter.race === '恶魔') { if (!hasRace(c, '恶魔') && !c.name.includes('恶魔') && !c.name.includes('吸血鬼') && !c.name.includes('魅魔')) return false; }
+        else if (!hasRace(c, deckAdvFilter.race)) return false;
       }
-      if (deckAdvFilter.type !== 'all' && c.type !== deckAdvFilter.type) return;
-      if (deckAdvFilter.rarity !== 'all' && c.rarity !== deckAdvFilter.rarity) return;
-      if (deckAdvFilter.spec === 'sac' && !(c.sacrifice > 0)) return;
-      if (deckAdvFilter.spec === 'bones' && !(c.bones > 0)) return;
-      if (deckAdvFilter.spec === 'cd' && !(getInitialCountdown(c) > 0)) return;
-      if (deckAdvFilter.spec === 'fuse' && !(c.keywords || []).some(k => k.k === '融合')) return;
+      if (deckAdvFilter.type !== 'all' && c.type !== deckAdvFilter.type) return false;
+      if (deckAdvFilter.rarity !== 'all' && c.rarity !== deckAdvFilter.rarity) return false;
+      const specs = Array.isArray(deckAdvFilter.specs) ? deckAdvFilter.specs : [];
+      const fullTxt = `${c.name} ${getCardDisplayText(c)}`;
+      for (const sp of specs) {
+        if (sp === 'sac' && !(c.sacrifice > 0)) return false;
+        else if (sp === 'bones' && !(c.bones > 0)) return false;
+        else if (sp === 'cd' && !(getInitialCountdown(c) > 0)) return false;
+        else if (sp === 'fuse' && !(c.keywords || []).some(k => k.k === '融合') && !fullTxt.includes('【融合')) return false;
+        else if (sp === 'self_dmg' && !fullTxt.includes('主战者造成') && !fullTxt.includes('献祭')) return false;
+        else if (['入场曲','谢幕曲','启动','爆能强化','瞬念召唤','抉择','守护','疾驰','突进','飞行','防空','毁灭','吸血','必杀','潜伏','荆棘','招募','亡者召还','纹章'].includes(sp)) {
+          const hasKw = (c.keywords || []).some(k => k.k === sp || String(k.k).startsWith(sp)) || fullTxt.includes(sp);
+          if (!hasKw) return false;
+        }
+      }
     }
-    if (kw && !(`${c.name}${c.race}${getCardDisplayText(c)}`).includes(kw)) return;
+    if (kw && !(`${c.name}${c.race}${c.rarity}${getCardDisplayText(c)}`).toLowerCase().includes(kw.toLowerCase())) return false;
+    return true;
+  });
 
+  filteredCards.sort((a, b) => {
+    const va = typeof getCardCostValue === 'function' ? getCardCostValue(a) : (a.energy || 0);
+    const vb = typeof getCardCostValue === 'function' ? getCardCostValue(b) : (b.energy || 0);
+    if (sortVal === 'value_desc') return vb - va || a.name.localeCompare(b.name, 'zh-CN');
+    if (sortVal === 'atk_desc') return (b.atk || 0) - (a.atk || 0) || vb - va;
+    if (sortVal === 'hp_desc') return (b.hp || 0) - (a.hp || 0) || vb - va;
+    if (sortVal === 'rarity_desc') return (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0) || va - vb;
+    if (sortVal === 'name_asc') return a.name.localeCompare(b.name, 'zh-CN');
+    return va - vb || (a.energy || 0) - (b.energy || 0);
+  });
+
+  const cntBadge = document.getElementById('deckGalleryCountBadge');
+  if (cntBadge) cntBadge.textContent = `显示 ${filteredCards.length} / ${basePool.length} 张`;
+
+  filteredCards.forEach(c => {
     const cnt = deckObj.cards[c.id] || 0;
     const wrap = document.createElement('div');
     wrap.className = 'flex flex-col items-center gap-1';
@@ -11370,35 +11472,44 @@ setInterval(() => {
 
 
 // ============================================================================
-// v27 卡组编辑器多维度二级筛选面板
+// v53 卡组编辑器多维度精细筛选面板 + 排序联动
 // ============================================================================
-const deckAdvFilter = { cost: 'all', race: 'all', type: 'all', rarity: 'all', spec: 'all' };
+const deckAdvFilter = { cost: 'all', system: 'all', race: 'all', type: 'all', rarity: 'all', specs: [] };
 
 function renderAdvFilterPills() {
   const specs = [
-    { containerId: 'advFilterCostRow', key: 'cost', opts: [['all','全部'],['0','0费'],['1','1费'],['2','2费'],['3','3费'],['4','4费'],['5','5费'],['6','6费'],['7+','7费+']] },
-    { containerId: 'advFilterRaceRow', key: 'race', opts: [['all','全部'],['龙族','龙族'],['机械','机械'],['亡灵','亡灵'],['无种族','无种族']] },
+    { containerId: 'advFilterCostRow', key: 'cost', opts: [['all','全部'],['0-1','0-1费'],['2','2费'],['3','3费'],['4','4费'],['5','5费'],['6','6费'],['7-8','7-8费'],['9+','9+费']] },
+    { containerId: 'advFilterSystemRow', key: 'system', opts: [['all','全部'],['energy_only','仅能量'],['sac_only','仅祭品'],['bones_only','仅骨头'],['multi','多体系混合'],['free','0费']] },
+    { containerId: 'advFilterRaceRow', key: 'race', opts: [['all','全部'],['龙族','🐉 龙族'],['机械','⚙️ 机械'],['亡灵','💀 亡灵'],['恶魔','😈 恶魔/血族'],['多族','🔗 多种族'],['无种族','无种族']] },
     { containerId: 'advFilterTypeRow', key: 'type', opts: [['all','全部'],['minion','随从'],['spell','法术'],['amulet','护符']] },
     { containerId: 'advFilterRarityRow', key: 'rarity', opts: [['all','全部'],['普通','普通'],['稀有','稀有'],['史诗','史诗'],['传说','传说']] },
-    { containerId: 'advFilterSpecRow', key: 'spec', opts: [['all','全部'],['sac','需祭品'],['bones','需骨头'],['cd','倒计时'],['fuse','可融合']], keepFirst: true }
+    { containerId: 'advFilterSpecRow', key: 'specs', multi: true, opts: [
+      ['sac','需祭品'],['bones','需骨头'],['cd','倒计时'],['fuse','可融合'],
+      ['入场曲','入场曲'],['谢幕曲','谢幕曲'],['启动','启动'],['爆能强化','爆能强化'],['瞬念召唤','瞬念召唤'],['抉择','抉择'],
+      ['守护','守护'],['疾驰','疾驰'],['突进','突进'],['飞行','飞行'],['防空','防空'],['毁灭','毁灭'],['吸血','吸血'],['必杀','必杀'],['潜伏','潜伏'],['荆棘','荆棘'],
+      ['招募','招募'],['亡者召还','亡者召还'],['纹章','纹章'],['self_dmg','自残/献祭']
+    ] }
   ];
   let activeCount = 0;
   specs.forEach(s => {
-    if (deckAdvFilter[s.key] !== 'all') activeCount++;
+    if (s.multi) activeCount += deckAdvFilter.specs.length;
+    else if (deckAdvFilter[s.key] !== 'all') activeCount++;
     const box = document.getElementById(s.containerId);
     if (!box) return;
-    if (s.keepFirst) {
-      while (box.children.length > 1) box.removeChild(box.lastElementChild);
-    } else {
-      box.innerHTML = '';
-    }
+    box.innerHTML = '';
     s.opts.forEach(([val, label]) => {
       const btn = document.createElement('button');
-      const isAct = deckAdvFilter[s.key] === val;
+      const isAct = s.multi ? deckAdvFilter.specs.includes(val) : (deckAdvFilter[s.key] === val);
       btn.textContent = label;
-      btn.style.cssText = `padding:4px 10px;border-radius:8px;font-size:12px;font-weight:800;border:1px solid ${isAct ? '#fbbf24' : '#334155'};background:${isAct ? '#b45309' : '#0f172a'};color:${isAct ? '#fff' : '#cbd5e1'};cursor:pointer;`;
+      btn.style.cssText = `padding:3px 9px;border-radius:8px;font-size:11px;font-weight:800;border:1px solid ${isAct ? '#fbbf24' : '#334155'};background:${isAct ? 'linear-gradient(90deg,#b45309,#d97706)' : '#0f172a'};color:${isAct ? '#fff' : '#cbd5e1'};cursor:pointer;transition:all 0.15s;`;
       btn.onclick = () => {
-        deckAdvFilter[s.key] = val;
+        if (s.multi) {
+          const i = deckAdvFilter.specs.indexOf(val);
+          if (i >= 0) deckAdvFilter.specs.splice(i, 1);
+          else deckAdvFilter.specs.push(val);
+        } else {
+          deckAdvFilter[s.key] = val;
+        }
         renderAdvFilterPills();
         renderDeckEditor();
       };
@@ -11406,9 +11517,13 @@ function renderAdvFilterPills() {
     });
   });
   const badge = document.getElementById('deckAdvFilterBadge');
-  if (badge) badge.classList.toggle('hidden', activeCount === 0);
+  if (badge) {
+    badge.textContent = String(activeCount);
+    badge.classList.toggle('hidden', activeCount === 0);
+  }
 }
 
+document.getElementById('selDeckSort')?.addEventListener('change', () => renderDeckEditor());
 document.getElementById('btnToggleDeckFilterPanel')?.addEventListener('click', () => {
   const p = document.getElementById('deckAdvFilterPanel');
   if (!p) return;
@@ -11419,12 +11534,169 @@ document.getElementById('btnCloseAdvFilter')?.addEventListener('click', () => {
   document.getElementById('deckAdvFilterPanel')?.classList.add('hidden');
 });
 document.getElementById('btnResetAdvFilter')?.addEventListener('click', () => {
-  deckAdvFilter.cost = 'all'; deckAdvFilter.race = 'all'; deckAdvFilter.type = 'all'; deckAdvFilter.rarity = 'all'; deckAdvFilter.spec = 'all';
+  deckAdvFilter.cost = 'all'; deckAdvFilter.system = 'all'; deckAdvFilter.race = 'all';
+  deckAdvFilter.type = 'all'; deckAdvFilter.rarity = 'all'; deckAdvFilter.specs = [];
   renderAdvFilterPills();
   renderDeckEditor();
 });
 renderAdvFilterPills();
 
+// ============================================================================
+// v53 主界面空中漂浮卡牌背景动画引擎
+// ============================================================================
+let _menuBgRaf = null;
+let _menuFloatingCards = [];
+let _menuBgStars = [];
+
+function startMainMenuBgAnim() {
+  const cvs = document.getElementById('mainMenuBgCanvas');
+  const streamEl = document.getElementById('mainMenuCardStream');
+  const overlay = document.getElementById('mainMenuOverlay');
+  if (!cvs || !overlay) return;
+  if (_menuBgRaf) { cancelAnimationFrame(_menuBgRaf); _menuBgRaf = null; }
+
+  const ctx = cvs.getContext('2d');
+  const resize = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cvs.width = Math.floor(window.innerWidth * dpr);
+    cvs.height = Math.floor(window.innerHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  resize();
+  if (!cvs._boundResize) {
+    window.addEventListener('resize', resize);
+    cvs._boundResize = true;
+  }
+
+  // 生成 16 张高清真实卡牌 DOM，赋予全方位 360° 随机飞行方向与缓慢 3D 自转力矩
+  if (_menuFloatingCards.length === 0 && streamEl && Array.isArray(allCards) && allCards.length > 0) {
+    streamEl.innerHTML = '';
+    const pool = allCards.filter(c => !c.isToken);
+    const highRarity = pool.filter(c => c.rarity === '传说' || c.rarity === '史诗');
+    const otherCards = pool.filter(c => c.rarity !== '传说' && c.rarity !== '史诗');
+    const ordered = [];
+    for (let i = 0; i < 16; i++) {
+      if (i % 3 !== 2 && highRarity.length > 0) {
+        ordered.push(highRarity[(i * 5) % highRarity.length]);
+      } else if (otherCards.length > 0) {
+        ordered.push(otherCards[(i * 7) % otherCards.length]);
+      } else {
+        ordered.push(pool[i % pool.length]);
+      }
+    }
+
+    const W = window.innerWidth, H = window.innerHeight;
+    const randSign = () => (Math.random() < 0.5 ? -1 : 1);
+    ordered.forEach((c, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'menu-float-card';
+      const cardDom = buildHandCardDOM(c, null, 0);
+      const backDom = document.createElement('div');
+      backDom.className = 'menu-float-card-back';
+      wrap.appendChild(cardDom);
+      wrap.appendChild(backDom);
+      streamEl.appendChild(wrap);
+
+      const flyAngle = Math.random() * Math.PI * 2;
+      const speed = 0.45 + Math.random() * 0.85;
+      const scale = 0.72 + Math.random() * 0.26;
+      wrap.style.opacity = String((0.78 + Math.random() * 0.18).toFixed(2));
+      _menuFloatingCards.push({
+        el: wrap,
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: Math.cos(flyAngle) * speed,
+        vy: Math.sin(flyAngle) * speed,
+        rx: (Math.random() - 0.5) * 40,
+        ry: (Math.random() - 0.5) * 60,
+        rz: Math.random() * 360,
+        vrx: randSign() * (0.08 + Math.random() * 0.22),
+        vry: randSign() * (0.12 + Math.random() * 0.28),
+        vrz: randSign() * (0.08 + Math.random() * 0.24),
+        scale
+      });
+    });
+
+    if (_menuBgStars.length === 0) {
+      for (let s = 0; s < 60; s++) {
+        const sAng = Math.random() * Math.PI * 2;
+        const sSpd = 0.15 + Math.random() * 0.35;
+        _menuBgStars.push({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          r: 0.9 + Math.random() * 2.2,
+          vx: Math.cos(sAng) * sSpd,
+          vy: Math.sin(sAng) * sSpd,
+          alpha: 0.25 + Math.random() * 0.65,
+          col: s % 3 === 0 ? '#fde047' : (s % 3 === 1 ? '#38bdf8' : '#c084fc')
+        });
+      }
+    }
+  }
+
+  let t = 0;
+  function frame() {
+    if (overlay.classList.contains('hidden')) {
+      _menuBgRaf = null;
+      return;
+    }
+    t += 0.016;
+    const W = window.innerWidth, H = window.innerHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    // 极光氛围光晕
+    const g1 = ctx.createRadialGradient(W * 0.22, H * 0.22, 20, W * 0.22, H * 0.22, W * 0.45);
+    g1.addColorStop(0, 'rgba(56, 189, 248, 0.15)');
+    g1.addColorStop(1, 'transparent');
+    ctx.fillStyle = g1;
+    ctx.fillRect(0, 0, W, H);
+
+    const g2 = ctx.createRadialGradient(W * 0.78, H * 0.76, 20, W * 0.78, H * 0.76, W * 0.48);
+    g2.addColorStop(0, 'rgba(168, 85, 247, 0.15)');
+    g2.addColorStop(1, 'transparent');
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, 0, W, H);
+
+    // 星尘粒子
+    for (const st of _menuBgStars) {
+      st.x += st.vx;
+      st.y += st.vy;
+      if (st.x < -10) st.x = W + 10;
+      if (st.x > W + 10) st.x = -10;
+      if (st.y < -10) st.y = H + 10;
+      if (st.y > H + 10) st.y = -10;
+      ctx.save();
+      ctx.globalAlpha = st.alpha * (0.65 + 0.35 * Math.sin(t * 2 + st.x));
+      ctx.fillStyle = st.col;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // 驱动全方位 360° 乱飞 + 缓慢随机方向 3D 自转的实体卡牌
+    for (const fc of _menuFloatingCards) {
+      fc.x += fc.vx;
+      fc.y += fc.vy;
+      fc.rx = (fc.rx + fc.vrx) % 360;
+      fc.ry = (fc.ry + fc.vry) % 360;
+      fc.rz = (fc.rz + fc.vrz) % 360;
+
+      if (fc.x < -220) fc.x = W + 180;
+      if (fc.x > W + 220) fc.x = -180;
+      if (fc.y < -260) fc.y = H + 200;
+      if (fc.y > H + 260) fc.y = -200;
+
+      fc.el.style.transform = `translate3d(${fc.x.toFixed(1)}px, ${fc.y.toFixed(1)}px, 0) rotateX(${fc.rx.toFixed(1)}deg) rotateY(${fc.ry.toFixed(1)}deg) rotateZ(${fc.rz.toFixed(1)}deg) scale(${fc.scale.toFixed(3)})`;
+    }
+
+    _menuBgRaf = requestAnimationFrame(frame);
+  }
+  _menuBgRaf = requestAnimationFrame(frame);
+}
+
+// 页面首次加载时如果主界面可见，立即启动空中飘浮卡牌背景动画
+if (document.getElementById('mainMenuOverlay') && !document.getElementById('mainMenuOverlay').classList.contains('hidden')) {
+  setTimeout(startMainMenuBgAnim, 80);
+}
 
 // ============================================================================
 // v32 联机全量特效队列重放 + 斩杀慢动作 + 主战者表情 + 局内聊天

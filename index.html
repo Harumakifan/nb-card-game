@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CardForge · 冥刻之诗 — 影之诗：超凡世界桌面版 & 规范用语卡牌设计器</title>
-<link rel="stylesheet" href="styles.css?v=51">
+<link rel="stylesheet" href="styles.css?v=52">
 </head>
 <body class="sv-arena-bg select-none" oncontextmenu="return false;">
 
@@ -435,48 +435,63 @@
 
   <div class="flex-1 flex flex-col bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3.5 overflow-hidden">
     <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
-      <div class="flex items-center gap-1.5">
-        <button data-filter="全部" class="deck-filter-pill px-3 py-1 rounded-lg text-xs font-black bg-amber-500 text-slate-950">全部</button>
-        <button data-filter="龙族" class="deck-filter-pill px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">🐉 龙族</button>
-        <button data-filter="机械" class="deck-filter-pill px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">⚙️ 机械</button>
-        <button data-filter="亡灵" class="deck-filter-pill px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">💀 亡灵</button>
-        <button data-filter="法术" class="deck-filter-pill px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">✨ 法术</button>
-        <button data-filter="护符" class="deck-filter-pill px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">⛩️ 护符</button>
-        <label class="flex items-center gap-1 text-xs text-slate-300 ml-2 cursor-pointer">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button data-filter="全部" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 text-slate-950">全部</button>
+        <button data-filter="随从" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">⚔️ 随从</button>
+        <button data-filter="法术" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">✨ 法术</button>
+        <button data-filter="护符" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">⛩️ 护符</button>
+        <button data-filter="龙族" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">🐉 龙族</button>
+        <button data-filter="机械" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">⚙️ 机械</button>
+        <button data-filter="亡灵" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">💀 亡灵</button>
+        <button data-filter="无种族" class="deck-filter-pill px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">🌀 无种族</button>
+        <label class="flex items-center gap-1 text-xs text-slate-300 ml-1 cursor-pointer">
           <input id="chkDeckShowTokens" type="checkbox" class="rounded"> 衍生物
         </label>
       </div>
-      <div class="flex items-center gap-2">
-        <button id="btnToggleDeckFilterPanel" style="background:#1e293b;border:1.5px solid #38bdf8;color:#7dd3fc;" class="px-3 py-1 rounded-lg text-xs font-black shadow transition">🎚️ 筛选 <span id="deckAdvFilterBadge" class="hidden ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px]">●</span></button>
-      <input id="inputDeckSearch" type="text" placeholder="搜索卡名/词条..." class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white w-44">
-        
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="deckGalleryCountBadge" class="text-[11px] font-black px-2 py-0.5 rounded-md bg-slate-800 text-cyan-300 border border-slate-700">-- 张</span>
+        <select id="selDeckSort" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-amber-200">
+          <option value="value_asc">⚖️ 价值从低到高</option>
+          <option value="value_desc">⚖️ 价值从高到低</option>
+          <option value="atk_desc">⚔️ 攻击力从高到低</option>
+          <option value="hp_desc">❤️ 生命值从高到低</option>
+          <option value="rarity_desc">💎 稀有度从高到低</option>
+          <option value="name_asc">🔤 名称排序</option>
+        </select>
+        <button id="btnToggleDeckFilterPanel" style="background:#1e293b;border:1.5px solid #38bdf8;color:#7dd3fc;" class="px-3 py-1 rounded-lg text-xs font-black shadow transition">🎚️ 精细筛选 <span id="deckAdvFilterBadge" class="hidden ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px]">0</span></button>
+        <input id="inputDeckSearch" type="text" placeholder="搜索卡名/种族/词条..." class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white w-44">
       </div>
     </div>
     <div id="importStatusToast" class="hidden my-1.5 px-3 py-1 rounded bg-emerald-950 border border-emerald-500/60 text-xs font-bold text-emerald-300"></div>
     <div class="text-[11px] text-slate-400 my-1">💡 左键单击查看详情；【右键点击卡池卡牌】快速加入卡组，【右键点击右侧卡组卡牌】快速移除；卡组中卡牌【向右拖动】增加1张同名卡，【向左拖出】移除1张！</div>
-    <!-- 卡牌筛选二级面板 -->
-    <div id="deckAdvFilterPanel" class="hidden bg-slate-950/95 border border-cyan-500/50 rounded-xl p-3 mb-2 flex flex-col gap-2 max-h-[220px] overflow-y-auto shrink-0 shadow-xl">
+    <!-- 卡牌精细筛选二级面板 -->
+    <div id="deckAdvFilterPanel" class="hidden bg-slate-950/95 border border-cyan-500/50 rounded-xl p-3 mb-2 flex flex-col gap-2 max-h-[270px] overflow-y-auto shrink-0 shadow-xl">
       <div class="flex flex-wrap items-center gap-1.5">
-        <span class="text-xs font-black text-emerald-300 w-14 shrink-0">⚡ 费用</span>
+        <span class="text-xs font-black text-amber-300 w-16 shrink-0">⚖️ 价值</span>
         <div id="advFilterCostRow" class="flex flex-wrap gap-1.5"></div>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
-        <span class="text-xs font-black text-sky-300 w-14 shrink-0">🐉 种族</span>
+        <span class="text-xs font-black text-emerald-300 w-16 shrink-0">💠 体系</span>
+        <div id="advFilterSystemRow" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-xs font-black text-sky-300 w-16 shrink-0">🐉 种族</span>
         <div id="advFilterRaceRow" class="flex flex-wrap gap-1.5"></div>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
-        <span class="text-xs font-black text-amber-300 w-14 shrink-0">🃏 类型</span>
+        <span class="text-xs font-black text-cyan-300 w-16 shrink-0">🃏 类型</span>
         <div id="advFilterTypeRow" class="flex flex-wrap gap-1.5"></div>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
-        <span class="text-xs font-black text-purple-300 w-14 shrink-0">💎 稀有</span>
+        <span class="text-xs font-black text-purple-300 w-16 shrink-0">💎 稀有</span>
         <div id="advFilterRarityRow" class="flex flex-wrap gap-1.5"></div>
       </div>
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800">
-        <div id="advFilterSpecRow" class="flex flex-wrap items-center gap-1.5">
-          <span class="text-xs font-black text-rose-300 w-14 shrink-0">🩸 机制</span>
+      <div class="flex flex-wrap items-start justify-between gap-2 pt-1.5 border-t border-slate-800">
+        <div class="flex flex-wrap items-center gap-1.5 flex-1">
+          <span class="text-xs font-black text-rose-300 w-16 shrink-0">🩸 词条(多选)</span>
+          <div id="advFilterSpecRow" class="flex flex-wrap gap-1.5 flex-1"></div>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 shrink-0">
           <button id="btnResetAdvFilter" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-600">🔄 重置</button>
           <button id="btnCloseAdvFilter" class="px-3 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-black text-white">✓ 收起</button>
         </div>
@@ -763,13 +778,14 @@
 <!-- 🏠 现代化游戏主界面（含动态粒子与魔法阵背景，桌面端舒展大气，手机端自适应） -->
 <div id="mainMenuOverlay" style="position:fixed;inset:0;z-index:160;background:radial-gradient(circle at 50% 25%, #0f1f4a 0%, #070b18 60%, #020617 100%);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
   <canvas id="mainMenuBgCanvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
+  <div id="mainMenuCardStream" style="position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;"></div>
   <div style="position:relative;z-index:1;width:100%;max-width:1180px;display:flex;flex-direction:column;gap:18px;">
     <!-- 顶部标题与玩家主战者名片 -->
-    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;background:rgba(15,23,42,0.82);backdrop-filter:blur(12px);border:1.5px solid rgba(56,189,248,0.5);border-radius:20px;padding:18px 24px;box-shadow:0 16px 48px rgba(0,0,0,0.65);">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(135deg,rgba(15,23,42,0.58),rgba(30,27,75,0.58));backdrop-filter:blur(16px);border:1.5px solid rgba(56,189,248,0.55);border-radius:20px;padding:18px 24px;box-shadow:0 16px 48px rgba(0,0,0,0.65);">
       <div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-size:clamp(24px,3.5vw,38px);font-weight:900;background:linear-gradient(90deg,#fde047,#38bdf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1.5px;">CardForge · 冥刻之诗</span>
-          <span style="padding:3px 10px;border-radius:999px;background:rgba(245,158,11,0.18);border:1px solid #f59e0b;color:#fde047;font-size:11px;font-weight:800;">v2.1 · 80张全卡池</span>
+          <span style="padding:3px 10px;border-radius:999px;background:rgba(245,158,11,0.18);border:1px solid #f59e0b;color:#fde047;font-size:11px;font-weight:800;">v2.5 · 131张全卡池 · 价值体系</span>
         </div>
         <div style="font-size:13px;color:#94a3b8;margin-top:4px;">影之诗 × 邪恶冥刻 策略构筑对战 · 支持网页跨设备联机与自定义主战者</div>
         <div id="menuActiveDeckBadge" style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;background:rgba(16,185,129,0.14);border:1px solid rgba(52,211,153,0.45);color:#6ee7b7;font-size:12px;font-weight:800;">🃏 当前出战卡组：--</div>
@@ -791,7 +807,7 @@
     <!-- 主功能大卡片网格（桌面端宽敞舒展，手机端紧凑自适应） -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:16px;">
       <!-- 单人挑战 AI -->
-      <div style="background:linear-gradient(145deg,rgba(30,41,59,0.9),rgba(15,23,42,0.96));backdrop-filter:blur(8px);border:1.5px solid #f59e0b;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(245,158,11,0.16);">
+      <div class="menu-glass-card" class="menu-glass-card" class="menu-glass-card" class="menu-glass-card" style="background:linear-gradient(145deg,rgba(30,41,59,0.72),rgba(15,23,42,0.62));backdrop-filter:blur(14px);border:1.5px solid #f59e0b;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(245,158,11,0.16);">
         <div style="font-size:18px;font-weight:900;color:#fde047;">🤖 单人挑战 AI</div>
         <div style="font-size:12px;color:#cbd5e1;line-height:1.5;">与全流派高智商战术 AI 切磋，AI 会按费用价值公式精打细算、优先优势交换与解场。</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
@@ -810,14 +826,14 @@
       </div>
 
       <!-- 网页联机对战 -->
-      <div style="background:linear-gradient(145deg,rgba(8,51,68,0.9),rgba(15,23,42,0.96));backdrop-filter:blur(8px);border:1.5px solid #22d3ee;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(34,211,238,0.16);">
+      <div style="background:linear-gradient(145deg,rgba(8,51,68,0.72),rgba(15,23,42,0.62));backdrop-filter:blur(14px);border:1.5px solid #22d3ee;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(34,211,238,0.16);">
         <div style="font-size:18px;font-weight:900;color:#67e8f9;">🌐 网页联机对战</div>
         <div style="font-size:12px;color:#cbd5e1;line-height:1.5;">连接在线联机大厅，创建公开或密码保护房间，与好友跨设备实时 PvP 并互相展示主战者形象。</div>
         <button id="btnMenuStartOnline" style="margin-top:auto;padding:11px;border-radius:12px;background:linear-gradient(90deg,#06b6d4,#2563eb);color:#fff;font-weight:900;font-size:14px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(6,182,212,0.4);">🌐 打开联机大厅</button>
       </div>
 
       <!-- 卡组编辑与双人同屏 -->
-      <div style="background:linear-gradient(145deg,rgba(6,78,59,0.55),rgba(15,23,42,0.96));backdrop-filter:blur(8px);border:1.5px solid #34d399;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(52,211,153,0.12);">
+      <div style="background:linear-gradient(145deg,rgba(6,78,59,0.62),rgba(15,23,42,0.62));backdrop-filter:blur(14px);border:1.5px solid #34d399;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(52,211,153,0.12);">
         <div style="font-size:18px;font-weight:900;color:#6ee7b7;">🛠️ 卡组构筑与编辑</div>
         <div style="font-size:12px;color:#cbd5e1;line-height:1.5;">支持新建多套自定义卡组、右键与拖拽快捷增减卡牌（40张出战），或与身边朋友同屏切磋。</div>
         <div style="display:flex;gap:10px;margin-top:auto;">
@@ -827,7 +843,7 @@
       </div>
 
       <!-- 卡牌设计器 & 全词条百科 -->
-      <div style="background:linear-gradient(145deg,rgba(88,28,135,0.5),rgba(15,23,42,0.96));backdrop-filter:blur(8px);border:1.5px solid #c084fc;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(192,132,252,0.12);">
+      <div style="background:linear-gradient(145deg,rgba(88,28,135,0.58),rgba(15,23,42,0.62));backdrop-filter:blur(14px);border:1.5px solid #c084fc;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(192,132,252,0.12);">
         <div style="font-size:18px;font-weight:900;color:#e9d5ff;">🃏 设计器与词条百科</div>
         <div style="font-size:12px;color:#cbd5e1;line-height:1.5;">使用内嵌《卡牌设计器 v2.1》创作并导入全新卡牌，或在词条百科中查阅全部机制细节。</div>
         <div style="display:flex;gap:10px;margin-top:auto;">
@@ -1011,7 +1027,8 @@
   </div>
 </div>
 
-<script src="game.js?v=51"></script>
+<script src="artEngine.js?v=52"></script>
+<script src="game.js?v=52"></script>
 
 <script>
 
