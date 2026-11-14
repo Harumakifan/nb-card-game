@@ -669,7 +669,7 @@
     flex-shrink: 0;
   }
   .sv-hand-card:hover {
-    transform: translateY(-34px) scale(1.16) !important;
+    transform: translateY(-34px) scale(1.16);
     z-index: 50 !important;
   }
 
@@ -1503,7 +1503,7 @@
 
   /* 禁用悬停位移导致的层级闪烁（触摸屏/详情打开时） */
   @media (hover: none) {
-    .sv-hand-card:hover { transform: none !important; }
+    .sv-hand-card:hover:not(.is-inspected) { transform: none; }
   }
 
   /* 全区域单指顺滑滚动（无需精准点击细小滑块） */
@@ -1815,7 +1815,7 @@
   .sv-lane-cell { width: 174px !important; height: 222px !important; }
   .sv-follower-token { width: 168px !important; height: 214px !important; }
   .sv-hand-card { width: 160px !important; height: 224px !important; }
-  .sv-hand-card:hover { transform: translateY(-38px) scale(1.15) !important; z-index: 65 !important; }
+  .sv-hand-card:hover { z-index: 65 !important; }
   #boardArenaBox {
     padding: 14px 26px !important;
     gap: 10px !important;
@@ -2126,3 +2126,187 @@
     transition: transform 0.12s, background 0.12s;
   }
   .cf-card-link:hover { background: rgba(56, 189, 248, 0.38); transform: translateY(-1px); }
+
+  /* === v43 无缝连续动态稀有度光效（随品质递增）+ 圆形三费与圆形稀有度徽章 === */
+  @keyframes balatro-sheen-pingpong {
+    0%   { transform: translateX(-35%) translateY(-20%) rotate(18deg); opacity: 0.35; }
+    50%  { opacity: 0.72; }
+    100% { transform: translateX(35%) translateY(20%) rotate(18deg); opacity: 0.35; }
+  }
+  @keyframes balatro-prism-pingpong {
+    0%   { transform: translateX(-40%) translateY(-25%) rotate(22deg); filter: hue-rotate(0deg); opacity: 0.55; }
+    50%  { opacity: 0.88; }
+    100% { transform: translateX(40%) translateY(25%) rotate(22deg); filter: hue-rotate(48deg); opacity: 0.55; }
+  }
+  @keyframes balatro-legend-glow {
+    0%   { box-shadow: 0 0 16px rgba(251,191,36,0.45), inset 0 0 12px rgba(253,224,71,0.22); }
+    50%  { box-shadow: 0 0 28px rgba(244,114,182,0.58), inset 0 0 18px rgba(56,189,248,0.30); }
+    100% { box-shadow: 0 0 16px rgba(251,191,36,0.45), inset 0 0 12px rgba(253,224,71,0.22); }
+  }
+
+  .sv-rarity-common, .sv-rarity-rare, .sv-rarity-epic, .sv-rarity-legend {
+    position: relative;
+    animation: none !important;
+  }
+  .sv-rarity-rare::after, .sv-rarity-epic::after, .sv-rarity-legend::after {
+    content: '';
+    position: absolute;
+    inset: -40%;
+    pointer-events: none;
+    z-index: 4;
+    mix-blend-mode: screen;
+    will-change: transform, opacity;
+  }
+  .sv-rarity-rare::after {
+    background: linear-gradient(90deg, transparent 25%, rgba(125,211,252,0.34) 48%, rgba(255,255,255,0.28) 52%, transparent 75%);
+    animation: balatro-sheen-pingpong 5.2s ease-in-out infinite alternate;
+  }
+  .sv-rarity-epic::after {
+    background: linear-gradient(90deg, transparent 15%, rgba(192,132,252,0.42) 38%, rgba(244,114,182,0.38) 52%, rgba(56,189,248,0.36) 66%, transparent 85%);
+    animation: balatro-prism-pingpong 3.8s ease-in-out infinite alternate;
+  }
+  .sv-rarity-legend {
+    animation: balatro-legend-glow 3.4s ease-in-out infinite alternate !important;
+  }
+  .sv-rarity-legend::after {
+    background: linear-gradient(90deg, transparent 10%, rgba(253,224,71,0.55) 30%, rgba(244,63,94,0.45) 48%, rgba(56,189,248,0.50) 64%, rgba(168,85,247,0.45) 80%, transparent 92%);
+    animation: balatro-prism-pingpong 2.6s ease-in-out infinite alternate;
+  }
+
+  /* 圆形统一三费徽章（严格单行不折行） */
+  .sv-cost-circle {
+    width: 24px; height: 24px;
+    border-radius: 9999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 900; line-height: 1;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.88), inset 0 1px 0 rgba(255,255,255,0.4);
+    border: 1.5px solid rgba(255,255,255,0.65);
+    flex-shrink: 0;
+  }
+  .sv-cost-energy { background: radial-gradient(circle at 35% 30%, #34d399, #065f46); color: #fff; border-color: #a7f3d0; }
+  .sv-cost-sac    { background: radial-gradient(circle at 35% 30%, #fb7185, #881337); color: #fff; border-color: #fecdd3; }
+  .sv-cost-bones  { background: radial-gradient(circle at 35% 30%, #ffffff, #cbd5e1); color: #0f172a; border-color: #fbbf24; }
+
+  /* 圆形统一稀有度徽章（绝对居中，等宽等高） */
+  .sv-rarity-circle {
+    width: 24px; height: 24px;
+    border-radius: 9999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 900; line-height: 1;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.85);
+    flex-shrink: 0;
+  }
+  .sv-rc-common { background: radial-gradient(circle at 35% 30%, #475569, #0f172a); border: 1.5px solid #94a3b8; color: #e2e8f0; }
+  .sv-rc-rare   { background: radial-gradient(circle at 35% 30%, #0284c7, #0c192c); border: 1.5px solid #38bdf8; color: #7dd3fc; }
+  .sv-rc-epic   { background: radial-gradient(circle at 35% 30%, #9333ea, #1a0b2e); border: 1.5px solid #c084fc; color: #e9d5ff; }
+  .sv-rc-legend { background: radial-gradient(circle at 35% 30%, #f59e0b, #451a03); border: 1.5px solid #fde047; color: #fef08a; }
+
+  /* === v44 纯 GPU 60fps 无卡顿手牌动态效果 === */
+  @keyframes balatro-sheen-pingpong {
+    0%   { transform: translate3d(-32%, -18%, 0) rotate(18deg); opacity: 0.30; }
+    50%  { opacity: 0.68; }
+    100% { transform: translate3d(32%, 18%, 0) rotate(18deg); opacity: 0.30; }
+  }
+  @keyframes balatro-prism-pingpong {
+    0%   { transform: translate3d(-36%, -22%, 0) rotate(22deg); opacity: 0.45; }
+    50%  { opacity: 0.82; }
+    100% { transform: translate3d(36%, 22%, 0) rotate(22deg); opacity: 0.45; }
+  }
+  .sv-rarity-legend {
+    animation: none !important;
+    box-shadow: 0 0 22px rgba(251,191,36,0.48), inset 0 0 14px rgba(253,224,71,0.22) !important;
+  }
+  .sv-rarity-rare::after, .sv-rarity-epic::after, .sv-rarity-legend::after {
+    mix-blend-mode: normal !important;
+    backface-visibility: hidden !important;
+  }
+  .sv-rarity-rare::after {
+    background: linear-gradient(90deg, transparent 28%, rgba(125,211,252,0.22) 48%, rgba(255,255,255,0.18) 52%, transparent 72%) !important;
+  }
+  .sv-rarity-epic::after {
+    background: linear-gradient(90deg, transparent 18%, rgba(192,132,252,0.28) 38%, rgba(244,114,182,0.26) 52%, rgba(56,189,248,0.24) 66%, transparent 82%) !important;
+  }
+  .sv-rarity-legend::after {
+    background: linear-gradient(90deg, transparent 12%, rgba(253,224,71,0.34) 30%, rgba(244,63,94,0.28) 48%, rgba(56,189,248,0.30) 64%, rgba(168,85,247,0.28) 80%, transparent 90%) !important;
+  }
+
+  /* === v45 战场卡牌边框美化（区分随从/护符与四档稀有度） === */
+  .sv-follower-token.sv-board-minion-token {
+    border-radius: 24px 24px 16px 16px !important;
+  }
+  .sv-follower-token.sv-board-amulet-token {
+    border-radius: 10px 26px 10px 26px !important;
+    box-shadow: inset 0 0 14px rgba(16, 185, 129, 0.35), 0 8px 20px rgba(0, 0, 0, 0.85) !important;
+  }
+  .sv-follower-token.sv-rarity-common { border: 2.5px solid #94a3b8 !important; }
+  .sv-follower-token.sv-rarity-rare   { border: 2.5px solid #38bdf8 !important; box-shadow: 0 0 14px rgba(56,189,248,0.40), inset 0 0 10px rgba(56,189,248,0.22) !important; }
+  .sv-follower-token.sv-rarity-epic   { border: 3px solid #c084fc !important; box-shadow: 0 0 18px rgba(168,85,247,0.48), inset 0 0 12px rgba(192,132,252,0.28) !important; }
+  .sv-follower-token.sv-rarity-legend { border: 3px solid #fbbf24 !important; box-shadow: 0 0 22px rgba(251,191,36,0.58), inset 0 0 14px rgba(253,224,71,0.34) !important; }
+
+  /* === v46 3D左右翻面检视摇晃（非匀速）+ 战场传说微弱检视 + 动画相位防重置 === */
+  @keyframes card-inspect-tilt {
+    0%   { transform: perspective(760px) rotateY(-12deg) scale(1.06); }
+    50%  { transform: perspective(760px) rotateY(12deg) scale(1.06); }
+    100% { transform: perspective(760px) rotateY(-12deg) scale(1.06); }
+  }
+  @keyframes card-inspect-tilt-lifted {
+    0%   { transform: translateY(-36px) scale(1.15) perspective(760px) rotateY(-11deg); }
+    50%  { transform: translateY(-36px) scale(1.15) perspective(760px) rotateY(11deg); }
+    100% { transform: translateY(-36px) scale(1.15) perspective(760px) rotateY(-11deg); }
+  }
+  @keyframes legend-board-tilt {
+    0%   { transform: perspective(720px) rotateY(-5deg); }
+    50%  { transform: perspective(720px) rotateY(5deg); }
+    100% { transform: perspective(720px) rotateY(-5deg); }
+  }
+
+  #deckGalleryGrid .sv-hand-card {
+    margin-bottom: 4px !important;
+    transform: none;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+  }
+  #deckGalleryGrid .sv-hand-card:hover,
+  #deckGalleryGrid .sv-hand-card.is-inspected,
+  #deckInspectedCardSlot .sv-hand-card {
+    animation: card-inspect-tilt 2.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+    z-index: 30 !important;
+    box-shadow: 0 14px 32px rgba(56, 189, 248, 0.35) !important;
+  }
+
+  #playerHandZone .sv-hand-card:hover,
+  #playerHandZone .sv-hand-card.is-inspected {
+    animation: card-inspect-tilt-lifted 2.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+    z-index: 65 !important;
+  }
+
+  .sv-follower-token.sv-rarity-legend {
+    animation: legend-board-tilt 5.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+    animation-delay: var(--anim-sync-52, 0s) !important;
+  }
+  .sv-follower-token::after,
+  .sv-follower-token .sv-card-art-box img,
+  .sv-hand-card::after,
+  .sv-hand-card .sv-card-art-box img {
+    animation-delay: var(--anim-sync-38, 0s) !important;
+  }
+
+
+  /* === v50 卡牌价值纯数字徽章（位于卡面正下方，与左上角费用和卡图右下角倒计时分离） === */
+  .sv-value-badge {
+    min-width: 26px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+    border: 1.5px solid #fbbf24;
+    color: #fde68a;
+    font-weight: 900;
+    font-size: 11px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(254, 240, 138, 0.28);
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
