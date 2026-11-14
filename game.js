@@ -2100,8 +2100,8 @@ function initNewBattle() {
   const btnAgain = document.getElementById('btnVicPlayAgain'); if (btnAgain) btnAgain.textContent = '🔄 再战一局';
   const btnDeck = document.getElementById('btnVicGoDeck'); if (btnDeck) btnDeck.textContent = '🏠 返回主界面';
   battle.turn = 1;
-  battle.firstPlayerSide = 0;
-  battle.activeSide = 0;
+  battle.firstPlayerSide = (battleMode === 'pve' && Math.random() < 0.5) ? 1 : 0;
+  battle.activeSide = battle.firstPlayerSide;
   battle.gameOver = false;
   battle.animating = false;
   battle.board = [[null, null, null, null, null], [null, null, null, null, null]];
@@ -2423,7 +2423,12 @@ document.getElementById('btnConfirmMulligan').addEventListener('click', async ()
     }
     return;
   }
-  await beginTurnSequence(0);
+  if (battleMode === 'pve' && battle.firstPlayerSide === 1) {
+    await beginTurnSequence(1);
+    await runEnemyAITurnAnimated();
+  } else {
+    await beginTurnSequence(0);
+  }
 });
 
 async function playTurnStartBanner(side) {
@@ -2769,7 +2774,7 @@ async function beginTurnSequence(side) {
   }
 
   await drawCardAnimated(side);
-  if (side === 1 && battle.turn === 1) await drawCardAnimated(1);
+  if (side !== battle.firstPlayerSide && battle.turn === 1) await drawCardAnimated(side);
   renderAllBattleUI();
 
   while ((st.delayedLastWordsDraws || 0) > 0) {
@@ -5425,10 +5430,11 @@ async function executeEndTurnSequence(side) {
     if (battleMode === 'pvp_pass') {
       await triggerPvpPassAndPlayHandover();
     } else if (side === 0) {
+      if (battle.firstPlayerSide === 1) battle.turn += 1;
       await beginTurnSequence(1);
       await runEnemyAITurnAnimated();
     } else {
-      battle.turn += 1;
+      if (battle.firstPlayerSide === 0) battle.turn += 1;
       await beginTurnSequence(0);
     }
   }
@@ -6895,9 +6901,30 @@ function compareTributeCandidatesForAI(instA, instB) {
   return (instA.currentAtk || 0) - (instB.currentAtk || 0);
 }
 
+function estimateAIExtraSummons(c, isEnh, choiceIdx) {
+  if (!c || !c.data) return 0;
+  const id = c.data.id;
+  if (id === 'cmwbyp6f419ju') return 4; // 摇滚骷髅吉他手
+  if (id === 'cmwgdqawegvy3') return 2; // 地狱三头犬
+  if (id === 'cmwgdeqcq4vyl') return 3; // 骸骨和少女
+  if (id === 'cmwgeg2eggz9t') return 3; // 骸骨恋人
+  if (id === 'cmwgrn65g40ql') return choiceIdx === 2 ? 3 : 0; // 拯救世界的大天使
+  if (id === 'cmwdvmwjm0301') return 2; // 丢失的龙蛋
+  if (id === 'cmwgrgw6jyd8p') return 1; // 亡灵骑士
+  const ast = c.data.ast || parseCardEffectAST(c.data);
+  const acts = [...(ast.fanfare || []), ...(ast.spellMain || []), ...(isEnh && ast.enhance ? ast.enhance.actions : [])];
+  let sum = 0;
+  for (const act of acts) {
+    if (act.op === 'summon') sum += (act.count || 1);
+    else if (act.op === 'reanimate' || act.op === 'recruit') sum += (act.times || 1);
+  }
+  return sum;
+}
+
 async function runEnemyAITurnAnimated() {
   if (battle.gameOver) return;
   battle.animating = true;
+  try {
   const st = battle.leaders[1];
   const pst = battle.leaders[0];
   await sleep(340);
@@ -7167,7 +7194,7 @@ async function runEnemyAITurnAnimated() {
         // 检查如果手牌中还有更低价值的随从可以先下场当祭品（且能量够先下杂鱼再打本卡），则优先先下杂鱼！
         const worstChosenLane = lowValueSac[c.data.sacrifice - 1];
         const worstChosenVal = getCardCostValue(battle.board[1][worstChosenLane].data);
-        const canPlayCheaperFodderFirst = emptyLanes.length > 0 && st.hand.some(h => {
+        const canPlayCheaperFodderFirst = emptyLanes.length >= 2 && st.hand.some(h => {
           if (h === c) return false;
           if (h.data.type !== 'minion' || (h.data.sacrifice || 0) > 0) return false;
           if (c.data.sacrificeCond && !hasRace(h.data, c.data.sacrificeCond)) return false;
@@ -7188,8 +7215,10 @@ async function runEnemyAITurnAnimated() {
           sacLanes.push(sl);
           sacPenalty += getCardCostValue(tm.data) * 22 + (tm.currentAtk + tm.currentHp) * 6 - (hasAnyLastWords(tm) ? 35 : 0);
         }
-        // 祭品总价值也不能大于等于当前打出的献祭类随从的价值（除非祭品总价值为0）
-        if (totalTributeVal >= selfValue && selfValue > 0) {
+        // 评估新卡自身价值 + 额外召唤价值，只要最终场上总价值更高即可献祭
+        const expectedExtraVal = estimateAIExtraSummons(c, isEnh, choiceIdx) * 1.5;
+        const totalExpectedNewVal = selfValue + expectedExtraVal;
+        if (totalTributeVal >= totalExpectedNewVal && totalExpectedNewVal > 0) {
           continue;
         }
         if (myMechCount >= 4 && isMechCard(c.data) && (myMechCount - c.data.sacrifice + 1) < 5) {
@@ -7320,6 +7349,16 @@ async function runEnemyAITurnAnimated() {
       // 1) 若打出后预计净新增随从 > 当前空位，会对溢出随从扣分（降低优先级但不一刀切禁止）
       // 2) 若当前空位紧张 (<= 2) 且手牌中有其他想打出的铺场卡，优先打出能净腾出格子的献祭/自毁卡！
       const extraSummons = estimateAIExtraSummons(c, isEnh, choiceIdx);
+      // 积极献祭奖励：如果破坏场上随从作为祭品后，新卡及衍生物让场上最终价值净提升，给予积极加分
+      if (sacLanes.length > 0) {
+        const sacrificedVal = sacLanes.reduce((sum, sl) => sum + (battle.board[1][sl] ? getCardCostValue(battle.board[1][sl].data) : 0), 0);
+        const newTotalVal = selfValue + extraSummons * 1.5;
+        const netValGain = newTotalVal - sacrificedVal;
+        if (netValGain > 0) {
+          totalScore += netValGain * 48;
+          if (emptyLanes.length <= 1) totalScore += 260; // 满场或格子紧张时积极用献祭升级场面
+        }
+      }
       const selfBoardOccupy = isBoardCard ? 1 : 0;
       const selfDestroySlot = (req === 'friendly_minion' && fullTxt.includes('破坏')) ? 1 : 0;
       const netBoardDelta = selfBoardOccupy + extraSummons - sacLanes.length - selfDestroySlot;
@@ -7335,7 +7374,7 @@ async function runEnemyAITurnAnimated() {
           return hTypeOk && (h.data.sacrifice || 0) === 0 && remE >= getEffectiveEnergy(h, st) && remB >= (h.data.bones || 0);
         });
         if (hasWaitingBoardCard) {
-          totalScore += 320 + (-netBoardDelta) * 140;
+          totalScore += 360 + (-netBoardDelta) * 160;
         }
       }
 
@@ -7439,7 +7478,11 @@ async function runEnemyAITurnAnimated() {
     }
   }
 
-  battle.animating = false;
+  } catch (err) {
+    console.error('AI回合执行异常:', err);
+  } finally {
+    battle.animating = false;
+  }
   if (!battle.gameOver) {
     await executeEndTurnSequence(1);
   }
