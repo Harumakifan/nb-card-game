@@ -8803,8 +8803,11 @@ function updateResponsiveViewportScale() {
   const vv = window.visualViewport;
   const vw = vv ? vv.width : window.innerWidth;
   const vh = vv ? vv.height : window.innerHeight;
-  let scale = Math.min(1, vw / 1340, vh / 840);
-  scale = Math.max(0.26, Math.min(1, scale));
+  const isCompactLandscape = vw > vh && (vh < 560 || vw < 1024);
+  let scale = isCompactLandscape
+    ? Math.min(1, vw / 1180, vh / 670)
+    : Math.min(1, vw / 1340, vh / 840);
+  scale = Math.max(0.32, Math.min(1, scale));
   document.documentElement.style.setProperty('--ui-scale', scale.toFixed(4));
   const mulScale = Math.max(0.42, Math.min(1, (vw - 24) / 1060, (vh - 20) / 560));
   document.documentElement.style.setProperty('--mulligan-scale', mulScale.toFixed(4));
@@ -10506,14 +10509,14 @@ async function playLethalSlowMotion(targetSide) {
 
 // 主战者表情系统
 const LEADER_EMOTES = [
-  '👋 你好，请多指教！',
-  '😎 精彩的操作！',
-  '🤔 容我思考一下...',
-  '😱 居然还有这手！',
-  '🔥 胜负已分！',
-  '😂 哈哈哈哈哈',
-  '🙏 承让了！',
-  '💢 不会让你得逞的！'
+  '👋 哈喽家人们，开打！',
+  '🤯 6，这波操作有点东西',
+  '🤔 别急，大脑过载思考中...',
+  '💦 汗流浃背了吧老弟',
+  '🔥 优势在我！这把稳了',
+  '😂 绷不住了，笑死我了',
+  '🫠 好好好，这么玩是吧',
+  '💢 我直接红温，接招吧！'
 ];
 
 function showLeaderEmoteBubble(side, text) {
@@ -10523,7 +10526,9 @@ function showLeaderEmoteBubble(side, text) {
   if (old) old.remove();
   const b = document.createElement('div');
   b.className = 'sv-emote-bubble';
-  b.style.cssText = side === 0 ? 'bottom:148px;left:50%;transform:translateX(-50%);' : 'top:148px;left:50%;transform:translateX(-50%);border-color:#f43f5e;';
+  b.style.cssText = side === 0
+    ? 'bottom:164px;left:50%;transform:translateX(-50%);'
+    : 'top:164px;left:50%;transform:translateX(-50%);border-color:#f43f5e;';
   b.textContent = text;
   anchor.appendChild(b);
   setTimeout(() => b.remove(), 3000);
@@ -10549,11 +10554,14 @@ function showLeaderEmoteBubble(side, text) {
       picker.appendChild(btn);
     });
   }
-  document.getElementById('playerLeaderNode')?.addEventListener('click', (e) => {
+  const leaderEl = document.getElementById('playerLeaderNode');
+  leaderEl?.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+  leaderEl?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!picker) return;
     picker.classList.toggle('hidden');
   });
+  picker?.addEventListener('mousedown', (e) => { e.stopPropagation(); });
   window.addEventListener('click', () => picker?.classList.add('hidden'));
 
   const chatWidget = document.getElementById('inGameChatWidget');

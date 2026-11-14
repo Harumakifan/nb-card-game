@@ -1715,8 +1715,8 @@
     animation: emote-pop 0.25s ease-out;
   }
   @keyframes emote-pop {
-    from { opacity: 0; transform: scale(0.75) translateY(8px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from { opacity: 0; transform: translateX(-50%) scale(0.78) translateY(8px); }
+    to { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
   }
 
 
@@ -1810,3 +1810,86 @@
   #playerHandZone.hand-collapsed { transform: translateY(144px) scale(0.86) !important; }
   #leaderEmotePicker { z-index: 185 !important; bottom: 225px !important; }
 
+
+  /* === v36 桌面端紧凑放大、手牌优化、表情不位移、手机端防遮挡 === */
+  .sv-lane-slot { width: 174px !important; height: 226px !important; }
+  .sv-follower-token { width: 168px !important; height: 216px !important; }
+  .sv-hand-card { width: 160px !important; height: 224px !important; }
+  .sv-hand-card:hover { transform: translateY(-38px) scale(1.15) !important; z-index: 55 !important; }
+  #boardArenaBox {
+    padding: 14px 26px !important;
+    gap: 10px !important;
+    transform: scale(1.12) !important;
+    transform-origin: center center !important;
+  }
+  #enemyLanesRow, #playerLanesRow { gap: 14px !important; }
+  #playerHandZone { z-index: 38 !important; min-height: 230px !important; }
+  #playerHandZone.hand-collapsed { transform: translateY(156px) scale(0.86) !important; opacity: 0.9 !important; }
+  #playerLeaderNode { z-index: 36 !important; bottom: 58px !important; }
+  #bottomLeftPlayerHud { left: 20px !important; bottom: 14px !important; }
+  #inGameChatWidget { left: 20px !important; bottom: 184px !important; }
+  #leaderEmotePicker {
+    z-index: 185 !important;
+    bottom: 228px !important;
+    grid-template-columns: repeat(2, minmax(172px, 1fr)) !important;
+  }
+  #enemyHandBacks {
+    position: fixed !important;
+    right: calc(50% + 148px) !important;
+    top: 14px !important;
+    margin-left: 0 !important;
+    z-index: 25 !important;
+  }
+  #enemyCrestBox {
+    position: fixed !important;
+    left: calc(50% + 148px) !important;
+    top: 10px !important;
+    z-index: 25 !important;
+  }
+
+  @media (max-width: 1024px), (max-height: 580px) {
+    #boardArenaBox {
+      transform: scale(1.0) !important;
+      margin-top: 4px !important;
+      padding: 10px 18px !important;
+      gap: 8px !important;
+    }
+    .sv-lane-slot { width: 156px !important; height: 204px !important; }
+    .sv-follower-token { width: 150px !important; height: 196px !important; }
+    .sv-hand-card { width: 148px !important; height: 208px !important; }
+    #enemyAvatarCanvasWrap { width: 182px !important; height: 118px !important; }
+    #playerLeaderNode { bottom: 38px !important; }
+    #playerLeaderNode > div:nth-child(2) { width: 186px !important; height: 124px !important; }
+    #rightHudColumn {
+      transform: translateY(-50%) scale(1.06) !important;
+      transform-origin: right center !important;
+      right: 10px !important;
+      gap: 4px !important;
+    }
+    #btnTurnOrb {
+      width: 108px !important;
+      height: 108px !important;
+    }
+    #bottomLeftPlayerHud {
+      transform: scale(1.18) !important;
+      transform-origin: bottom left !important;
+      left: 10px !important;
+      bottom: 8px !important;
+    }
+    #bottomRightActionHud {
+      transform: scale(1.20) !important;
+      transform-origin: bottom right !important;
+      right: 10px !important;
+      bottom: 8px !important;
+    }
+    #svDetailPanel {
+      top: 52px !important;
+      left: 10px !important;
+      width: 320px !important;
+      max-height: calc(100dvh / var(--ui-scale, 1) - 66px) !important;
+      overflow-y: auto !important;
+    }
+    #enemyHandBacks { right: calc(50% + 128px) !important; top: 8px !important; }
+    #enemyCrestBox { left: calc(50% + 128px) !important; top: 6px !important; transform: scale(0.88); transform-origin: top left; }
+    #playerHandZone.hand-collapsed { transform: translateY(138px) scale(0.86) !important; }
+  }

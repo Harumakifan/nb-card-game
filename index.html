@@ -63,10 +63,10 @@
 <!-- 视图 1：《影之诗：超凡世界》主战场 -->
 <div id="screenBattle" class="relative w-screen h-screen overflow-hidden flex flex-col justify-between">
   <div class="relative w-full h-[96px] flex items-start justify-between px-6 pt-2 z-20 pointer-events-none">
-    <!-- 敌方手牌卡背位于中偏左，绝不挤压正中主战者 -->
-    <div id="enemyHandBacks" class="flex items-center -space-x-1.5 ml-[23vw] mt-1.5"></div>
+    <!-- 敌方手牌卡背位于主战者左侧，对称排布 -->
+    <div id="enemyHandBacks" class="flex items-center -space-x-1.5"></div>
 
-    <!-- 敌方主战者：严格固定于正上方居中 (left-1/2 -translate-x-1/2) 且大幅放大 -->
+    <!-- 敌方主战者：严格固定于正上方居中 -->
     <div id="enemyLeaderNode" class="pointer-events-auto fixed top-1 left-1/2 -translate-x-1/2 flex items-center justify-center z-30">
       <div id="enemyAvatarCanvasWrap" class="w-40 h-32 rounded-b-[42px] bg-gradient-to-b from-purple-900 via-slate-900 to-slate-950 border-[3px] border-amber-400/90 shadow-[0_8px_30px_rgba(0,0,0,0.9)] flex flex-col items-center justify-center relative overflow-hidden">
         <img id="enemyLeaderImg" class="w-full h-full object-cover" alt="敌方主战者"/>
@@ -77,7 +77,13 @@
       </div>
     </div>
 
-    <div id="topRightEnemyHud" style="margin-right: 18px;" class="pointer-events-auto flex flex-col items-end gap-1.5 mt-1">
+    <!-- 敌方纹章栏独立置于主战者右侧空域，彻底避开右侧牌库与能量面板 -->
+    <div id="enemyCrestBox" class="pointer-events-auto flex items-center gap-1.5">
+      <span class="text-[10px] font-black text-amber-300/90 bg-slate-950/85 px-2 py-0.5 rounded border border-amber-500/30">敌方纹章</span>
+      <div id="enemyCrestsRow" class="sv-crest-rack"></div>
+    </div>
+
+    <div id="topRightEnemyHud" style="position:fixed;right:16px;top:8px;z-index:25;" class="pointer-events-auto flex flex-col items-end gap-1.5">
       <div class="flex items-center gap-4 bg-slate-950/90 border border-slate-700/80 rounded-lg px-3.5 py-1 text-xs font-bold shadow">
         <span>🃏 <b id="uiEnemyHandCnt" class="text-amber-300">4</b></span>
         <span>📚 <b id="uiEnemyDeckCnt" class="text-slate-100">36</b></span>
@@ -85,11 +91,6 @@
       </div>
       <div class="bg-gradient-to-r from-rose-950/90 via-slate-900/95 to-rose-950/90 border border-amber-500/40 rounded-lg px-3.5 py-1 text-[11px] font-bold text-rose-200 shadow">
         已破坏谢幕曲: <b id="uiEnemyLWCnt" class="text-white">0</b>
-      </div>
-      <!-- 敌方纹章栏（右上角显示，最多同时存在5个） -->
-      <div class="flex items-center gap-1.5 mt-0.5">
-        <span class="text-[10px] font-black text-amber-300/90 bg-slate-950/85 px-2 py-0.5 rounded border border-amber-500/30">敌方纹章</span>
-        <div id="enemyCrestsRow" class="sv-crest-rack"></div>
       </div>
     </div>
   </div>
@@ -290,7 +291,7 @@
     </div>
 
     <!-- 我方主战者：大幅放大，手牌收起时完整华丽呈现 -->
-    <div id="playerLeaderNode" style="bottom:68px;cursor:pointer;" class="pointer-events-auto fixed left-1/2 -translate-x-1/2 flex items-center z-[38] transition-all duration-300">
+    <div id="playerLeaderNode" style="bottom:58px;cursor:pointer;" class="interactive-zone pointer-events-auto fixed left-1/2 -translate-x-1/2 flex items-center z-[36] transition-all duration-300">
       <div class="flex flex-col items-center gap-1 -mr-3 z-10">
         <div id="uiTurnOrderBadge" class="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 border border-amber-200 text-[10px] font-black text-white shadow-lg whitespace-nowrap">🎲 先手</div>
         <div class="w-11 h-11 rounded-full bg-gradient-to-b from-slate-700 to-slate-900 border-2 border-amber-300 flex items-center justify-center shadow-lg" title="当前回合">
@@ -1174,11 +1175,11 @@
 </div>
 
 <!-- 😊 我方主战者表情快捷轮盘 -->
-<div id="leaderEmotePicker" class="hidden" style="position:fixed;bottom:165px;left:50%;transform:translateX(-50%);z-index:165;background:rgba(15,23,42,0.96);border:2px solid #fbbf24;border-radius:16px;padding:10px;display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:6px;box-shadow:0 12px 36px rgba(0,0,0,0.9);">
+<div id="leaderEmotePicker" class="interactive-zone hidden" style="position:fixed;bottom:165px;left:50%;transform:translateX(-50%);z-index:165;background:rgba(15,23,42,0.96);border:2px solid #fbbf24;border-radius:16px;padding:10px;display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:6px;box-shadow:0 12px 36px rgba(0,0,0,0.9);">
 </div>
 
 <!-- 💬 联机局内聊天浮窗 -->
-<div id="inGameChatWidget" class="hidden" style="position:fixed;bottom:14px;left:16px;z-index:162;">
+<div id="inGameChatWidget" class="interactive-zone hidden" style="position:fixed;bottom:14px;left:16px;z-index:162;">
   <button id="btnToggleInGameChat" style="position:relative;padding:8px 14px;border-radius:999px;background:#0f172a;border:2px solid #38bdf8;color:#7dd3fc;font-size:13px;font-weight:900;box-shadow:0 4px 16px rgba(0,0,0,0.75);">
     💬 聊天
     <span id="chatUnreadDot" class="hidden" style="position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:999px;background:#f43f5e;border:1.5px solid #fff;"></span>
