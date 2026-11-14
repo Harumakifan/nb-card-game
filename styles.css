@@ -2466,3 +2466,162 @@
   -webkit-text-stroke: 1.5px #020617;
   text-shadow: 0 3px 0 #020617, 0 0 16px currentColor !important;
 }
+
+/* === v65 放大战场棋盘 + 敌我主战者居中对齐 === */
+#screenBattle > div:first-child {
+  height: 100px !important;
+}
+/* 让敌我主战者头像本体严格居中于 50%，血量框与先手/回合徽章改为绝对定位挂在两侧，确保上下完全对齐 */
+#enemyLeaderNode {
+  top: 2px !important;
+  left: 50% !important;
+  transform: translateX(-50%) scale(1.0) !important;
+}
+#enemyAvatarCanvasWrap {
+  width: 196px !important;
+  height: 100px !important;
+  border-bottom-left-radius: 32px !important;
+  border-bottom-right-radius: 32px !important;
+}
+#enemyLeaderNode > div:nth-child(2) {
+  position: absolute !important;
+  left: calc(100% - 14px) !important;
+  top: 16px !important;
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+}
+#playerLeaderNode {
+  left: 50% !important;
+  bottom: 58px !important;
+  transform: translateX(-50%) scale(1.0) !important;
+}
+#playerLeaderNode > div:nth-child(1) {
+  position: absolute !important;
+  right: calc(100% - 12px) !important;
+  bottom: 14px !important;
+  margin-right: 0 !important;
+}
+#playerLeaderNode > div:nth-child(2) {
+  width: 196px !important;
+  height: 140px !important;
+}
+#playerLeaderNode > div:nth-child(3) {
+  position: absolute !important;
+  left: calc(100% - 12px) !important;
+  bottom: 14px !important;
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+}
+#enemyHandBacks {
+  right: calc(50% + 148px) !important;
+  top: 10px !important;
+}
+#enemyCrestBox {
+  left: calc(50% + 158px) !important;
+  top: 6px !important;
+}
+
+/* 恢复大尺寸战场战道与棋盘 */
+.sv-lane-cell {
+  width: 174px !important;
+  height: 218px !important;
+}
+.sv-follower-token {
+  width: 168px !important;
+  height: 210px !important;
+}
+#boardArenaBox {
+  padding: 8px 22px !important;
+  gap: 6px !important;
+  margin-top: 0 !important;
+  transform: scale(1.04) !important;
+  transform-origin: center center !important;
+}
+#playerHandZone {
+  min-height: 210px !important;
+}
+@media (min-height: 940px) and (min-width: 1200px) {
+  #boardArenaBox {
+    transform: scale(1.10) !important;
+  }
+}
+@media (max-width: 1024px), (max-height: 580px) {
+  #screenBattle > div:first-child {
+    height: 84px !important;
+  }
+  #enemyAvatarCanvasWrap {
+    width: 160px !important;
+    height: 82px !important;
+  }
+  #enemyLeaderNode > div:nth-child(2) {
+    width: 44px !important;
+    height: 48px !important;
+    top: 12px !important;
+    left: calc(100% - 12px) !important;
+  }
+  #playerLeaderNode {
+    bottom: 32px !important;
+  }
+  #playerLeaderNode > div:nth-child(2) {
+    width: 160px !important;
+    height: 108px !important;
+  }
+  #boardArenaBox {
+    margin-top: 0 !important;
+    transform: scale(0.95) !important;
+    padding: 6px 14px !important;
+    gap: 5px !important;
+  }
+  .sv-lane-cell {
+    width: 150px !important;
+    height: 190px !important;
+  }
+  .sv-follower-token {
+    width: 144px !important;
+    height: 182px !important;
+  }
+}
+
+/* === v67 详情面板不被效果展示阻塞且层级高于效果展示 === */
+#svEffectFeed {
+  z-index: 50 !important;
+}
+#svDetailPanel {
+  z-index: 260 !important;
+}
+
+/* === v69 爆能强化专属高亮与动态费用样式 === */
+@keyframes glow-enhance-cycle {
+  0% { box-shadow: 0 0 14px rgba(217, 70, 239, 0.85), 0 0 28px rgba(249, 115, 22, 0.65); }
+  100% { box-shadow: 0 0 24px rgba(232, 121, 249, 1), 0 0 46px rgba(251, 146, 60, 0.92); }
+}
+.sv-glow-enhance {
+  animation: glow-enhance-cycle 0.85s infinite alternate;
+}
+@keyframes hand-playable-enhance-pulse {
+  0% { opacity: 0.82; box-shadow: 0 0 16px rgba(217, 70, 239, 0.9), 0 0 32px rgba(249, 115, 22, 0.68), inset 0 0 10px rgba(253, 224, 71, 0.35); }
+  100% { opacity: 1; box-shadow: 0 0 26px rgba(232, 121, 249, 1), 0 0 50px rgba(251, 146, 60, 0.95), inset 0 0 16px rgba(253, 224, 71, 0.6); }
+}
+.sv-hand-card.sv-hand-playable-enhance::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 18px;
+  pointer-events: none;
+  z-index: 1;
+  border: 3px solid #f0abfc;
+  animation: hand-playable-enhance-pulse 0.85s ease-in-out infinite alternate;
+}
+.sv-cost-circle.sv-cost-enhanced {
+  background: linear-gradient(135deg, #d946ef 0%, #f97316 100%) !important;
+  color: #fef08a !important;
+  border: 2px solid #fde047 !important;
+  box-shadow: 0 0 12px rgba(240, 171, 252, 0.95), 0 0 6px rgba(253, 224, 71, 0.8) !important;
+  transform: scale(1.1);
+}
+.sv-enhance-chip {
+  background: linear-gradient(135deg, #c026d3 0%, #ea580c 100%);
+  color: #fef08a;
+  border: 1.5px solid #fde047;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}

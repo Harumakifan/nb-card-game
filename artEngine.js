@@ -1065,7 +1065,12 @@
       '堕天使': { bg: ['#a855f7', '#090d16'], hair: '#e9d5ff', eye: '#f43f5e', suit: '#3b0764', wing: 'demon_wings', headgear: 'halo' },
       '慈爱的龙母': { bg: ['#f472b6', '#4c0519'], hair: '#fbcfe8', eye: '#fde047', suit: '#831843', wing: 'dragon_wings', headgear: 'crown' },
       '龙骑士': { bg: ['#0284c7', '#172554'], hair: '#60a5fa', eye: '#fde047', suit: '#1e3a8a', wing: 'dragon_wings', prop: 'dragon_lance' },
-      '静听倾诉的修女': { bg: ['#38bdf8', '#0f172a'], hair: '#e2e8f0', eye: '#38bdf8', suit: '#1e293b', headgear: 'nun_veil', aura: '#bae6fd' }
+      '静听倾诉的修女': { bg: ['#38bdf8', '#0f172a'], hair: '#e2e8f0', eye: '#38bdf8', suit: '#1e293b', headgear: 'nun_veil', aura: '#bae6fd' },
+      '小小唤灵术士': { bg: ['#7c3aed', '#090d16'], hair: '#e9d5ff', eye: '#c084fc', suit: '#3b0764', headgear: 'witch_hat', prop: 'necromancer_staff', aura: '#a855f7' },
+      '胆小鬼': { bg: ['#334155', '#090d16'], hair: '#cbd5e1', eye: '#fde047', suit: '#1e293b', headgear: 'hood', aura: '#94a3b8' },
+      '亡灵骑士': { bg: ['#1e1b4b', '#050811'], hair: '#94a3b8', eye: '#38bdf8', suit: '#0f172a', headgear: 'horns', prop: 'greatsword', aura: '#6366f1' },
+      '拯救世界的大天使': { bg: ['#fef08a', '#1e3a8a'], hair: '#fef9c3', eye: '#38bdf8', suit: '#f8fafc', wing: 'angel_feather', headgear: 'halo', prop: 'greatsword', aura: '#fde047' },
+      '毁灭世界的魔王': { bg: ['#dc2626', '#050811'], hair: '#fecaca', eye: '#ef4444', suit: '#450a0a', wing: 'demon_wings', headgear: 'crown', prop: 'greatsword', aura: '#ef4444' }
     };
 
     if (charPresets[name]) {
@@ -1083,6 +1088,101 @@
       if (name === '骸骨和少女') {
         drawSkull(ctx, 206, 98, 0.78, { eyeCol: '#c084fc', horns: true });
       }
+      return true;
+    }
+
+
+    if (name === '百变怪') {
+      fillRadialBg(ctx, '#c084fc', '#4c1d95', '#090d16');
+      drawParticles(ctx, h, '#e879f9', 18, 'sparks');
+      ctx.save();
+      const grad = ctx.createRadialGradient(132, 92, 12, 140, 108, 66);
+      grad.addColorStop(0, '#f0abfc');
+      grad.addColorStop(0.6, '#c084fc');
+      grad.addColorStop(1, '#7e22ce');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(86, 134);
+      ctx.bezierCurveTo(72, 104, 88, 60, 118, 56);
+      ctx.bezierCurveTo(132, 42, 154, 46, 166, 62);
+      ctx.bezierCurveTo(198, 68, 208, 106, 192, 136);
+      ctx.bezierCurveTo(176, 152, 102, 152, 86, 134);
+      ctx.closePath();
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#f5d0fe';
+      ctx.stroke();
+      // 可爱豆豆眼与微笑
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.arc(124, 96, 4.2, 0, Math.PI * 2); ctx.arc(156, 96, 4.2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(126, 110); ctx.quadraticCurveTo(140, 120, 154, 110); ctx.stroke();
+      ctx.restore();
+      return true;
+    }
+
+    if (name === '插满刀的血块怪') {
+      fillRadialBg(ctx, '#991b1b', '#2d0606', '#050811');
+      drawParticles(ctx, h, '#ef4444', 18, 'sparks');
+      ctx.save();
+      // 插满利刃
+      const blades = [[-48, -32, -0.5], [46, -34, 0.55], [-56, 8, -1.1], [56, 10, 1.1], [0, -56, 0]];
+      blades.forEach(([dx, dy, ang]) => {
+        ctx.save();
+        ctx.translate(140 + dx, 104 + dy);
+        ctx.rotate(ang);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(0, -34); ctx.lineTo(4, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(-7, 0, 14, 4);
+        ctx.fillStyle = '#7f1d1d';
+        ctx.fillRect(-2.5, 4, 5, 10);
+        ctx.restore();
+      });
+      // 血肉躯体
+      const bg = ctx.createRadialGradient(132, 96, 10, 140, 106, 56);
+      bg.addColorStop(0, '#ef4444');
+      bg.addColorStop(0.65, '#991b1b');
+      bg.addColorStop(1, '#450a0a');
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.ellipse(140, 108, 48, 38, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath(); ctx.arc(124, 102, 4.5, 0, Math.PI * 2); ctx.arc(156, 102, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      return true;
+    }
+
+    if (name === '冒绿火的无头战士' || name === '冲锋的无头骑士') {
+      const isKnight = name === '冲锋的无头骑士';
+      fillRadialBg(ctx, isKnight ? '#0f766e' : '#15803d', '#090d16', '#050811');
+      drawParticles(ctx, h, isKnight ? '#2dd4bf' : '#4ade80', 22, 'sparks');
+      ctx.save();
+      // 铠甲躯干（无头）
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = isKnight ? '#5eead4' : '#4ade80';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(100, 154); ctx.lineTo(108, 92); ctx.lineTo(172, 92); ctx.lineTo(180, 154); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      // 颈部冒出的绿火
+      const flameGrad = ctx.createRadialGradient(140, 74, 4, 140, 74, 34);
+      flameGrad.addColorStop(0, '#bbf7d0');
+      flameGrad.addColorStop(0.5, isKnight ? '#14b8a6' : '#22c55e');
+      flameGrad.addColorStop(1, 'rgba(34,197,94,0)');
+      ctx.fillStyle = flameGrad;
+      ctx.beginPath();
+      ctx.moveTo(122, 92);
+      ctx.quadraticCurveTo(114, 58, 140, 38);
+      ctx.quadraticCurveTo(166, 58, 158, 92);
+      ctx.closePath();
+      ctx.fill();
+      // 长剑/战斧
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(176, 136); ctx.lineTo(212, 60); ctx.stroke();
+      ctx.restore();
       return true;
     }
 
