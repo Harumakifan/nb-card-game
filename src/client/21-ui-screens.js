@@ -205,6 +205,14 @@ document.getElementById('btnConfirmImportDeckCode')?.addEventListener('click', (
   });
 });
 
+let _cfGdSourcesPromise = null;
+function cfLoadGdSources() {
+  if (!_cfGdSourcesPromise) {
+    _cfGdSourcesPromise = fetch('gd-sources.json').then(r => (r.ok ? r.json() : {})).then(o => { GD_SOURCES = o || {}; }).catch(() => {});
+  }
+  return _cfGdSourcesPromise;
+}
+
 function switchScreen(name) {
   const surBtn = document.getElementById('btnTopSurrenderExit');
   const backBtn = document.getElementById('btnTopBackMenu');
@@ -236,7 +244,9 @@ function switchScreen(name) {
   if (typeof publishOnlinePresence === 'function') publishOnlinePresence(false);
   if (name === 'designer' && document.getElementById('desName')) { renderV19CardList(); if (v19DesignerCards.length > 0) loadCardIntoDesigner(v19DesignerCards[0]); else document.getElementById('btnV19NewCard')?.click(); }
   if (name === 'code' && !document.getElementById('gdSourcePre').textContent) {
-    document.getElementById('gdSourcePre').textContent = GD_SOURCES['EffectScriptParser.gd'] || '';
+    cfLoadGdSources().then(() => {
+      document.getElementById('gdSourcePre').textContent = GD_SOURCES['EffectScriptParser.gd'] || '';
+    });
   }
 }
 
