@@ -79,6 +79,27 @@ function getCardGrantedEffectsList(inst, location) {
   return list;
 }
 
+// v1.89 仅当手牌拥有真正的「额外效果/附加词条/额外谢幕曲」时才显示感叹号；
+// 单纯被抽到/加入手牌或仅改攻血费数值不显示感叹号（详情中仍保留来源记录，卡面数字仍变色）
+function hasHandCardExtraEffectBadge(inst) {
+  if (!inst || !inst.data) return false;
+  const c = inst.data;
+  if (Array.isArray(inst.extraLastWords) && inst.extraLastWords.length > 0) return true;
+  const baseKws = new Set((c.keywords || []).map(k => k.k));
+  if (Object.keys(inst.activeKw || {}).some(k => !baseKws.has(k))) return true;
+  if ((inst.fusedCount || 0) > 0 && c.id === 'cmwdi4pwz3c0k') return true;
+  const list = Array.isArray(inst.grantedEffects) ? inst.grantedEffects : [];
+  for (const raw of list) {
+    const t = String(raw || '');
+    // 跳过仅记录来源的抽牌/衍生加入/转化
+    if (/(抽上手牌|衍生加入手牌|检索|召唤入场|招募入场|亡者召还入场|由『[^』]+』转化)/.test(t)) continue;
+    // 跳过纯数值变化（攻/血/费用/倒计时）且不含额外词条或效果的条目
+    const hasRealEffect = /(获得谢幕曲|获得【|额外召唤|屏障|守护|毁灭|飞行|虹吸|灵气|潜行|荆棘|多重攻击|两侧攻击|三侧攻击|全体攻击|触发|赋予)/.test(t);
+    if (hasRealEffect) return true;
+  }
+  return false;
+}
+
 
 const KEYWORD_GLOSSARY = {
   '入场曲': '从手牌打出进入战场时触发的能力（由【招募】、【亡者召还】或衍生物召唤进场时不触发）。',

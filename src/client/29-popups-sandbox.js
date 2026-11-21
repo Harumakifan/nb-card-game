@@ -91,7 +91,6 @@ async function replayOpponentActionsOnClient(actionMeta) {
       const hitLeader = !battle.board[0][ev.toLane];
       const toEl = hitLeader ? document.getElementById('playerLeaderNode') : getLaneDOM(0, ev.toLane);
       if (atkToken && toEl) {
-        sfx.play('attack');
         const ar = atkToken.getBoundingClientRect();
         const tr = toEl.getBoundingClientRect();
         const dx = (tr.left + tr.width / 2) - (ar.left + ar.width / 2);

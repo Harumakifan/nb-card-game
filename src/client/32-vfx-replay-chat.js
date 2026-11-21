@@ -22,7 +22,6 @@ async function replayRecordedVfxList(vfxList) {
           : getLaneDOM(mToSide, ev.toLane);
 
         const doLunge = async () => {
-          sfx.play('attack');
           if (atkToken && targetEl) {
             const ar = atkToken.getBoundingClientRect();
             const tr = targetEl.getBoundingClientRect();
@@ -89,7 +88,33 @@ async function replayRecordedVfxList(vfxList) {
       } else if (ev.kind === 'lw_vfx') {
         if (typeof playLastWordsTriggerVFX === 'function') await playLastWordsTriggerVFX(mSide, ev.lane, ev.name || '');
       } else if (ev.kind === 'crest_vfx') {
+        sfx.play('synergy');
         if (typeof playCrestTriggerVFX === 'function') await playCrestTriggerVFX(mSide, ev.crestId);
+      } else if (ev.kind === 'aoe_wave') {
+        sfx.play('synergy');
+        if (typeof playAoeShockwaveVFX === 'function') await playAoeShockwaveVFX(mSide, ev.color || '#38bdf8');
+      } else if (ev.kind === 'destroy_vfx') {
+        sfx.play('hit');
+        if (typeof playDestroyShatterVFX === 'function') await playDestroyShatterVFX(mSide, ev.lane, ev.color || '#f43f5e');
+      } else if (ev.kind === 'banish_vfx') {
+        sfx.play('lastwords');
+        if (typeof playBanishVoidSVG === 'function') await playBanishVoidSVG(mSide, ev.lane);
+      } else if (ev.kind === 'invoke_vfx') {
+        sfx.play('legend');
+        const cd = ev.cid ? cardsById[ev.cid] : null;
+        if (cd && typeof playDeckToBoardInvocationVFX === 'function') await playDeckToBoardInvocationVFX(mSide, ev.lane, cd);
+      } else if (ev.kind === 'extra_energy_vfx') {
+        sfx.play('synergy');
+        if (typeof playExtraEnergyVFX === 'function') await playExtraEnergyVFX(mSide);
+      } else if (ev.kind === 'overdraw_vfx') {
+        const cd = ev.cid ? cardsById[ev.cid] : null;
+        if (cd && typeof playOverdrawBurnAnim === 'function') await playOverdrawBurnAnim(mSide, cd);
+      } else if (ev.kind === 'bounce_vfx') {
+        sfx.play('draw');
+        const cd = ev.cid ? cardsById[ev.cid] : null;
+        if (cd && typeof playBoardToHandBounceVFX === 'function') await playBoardToHandBounceVFX(mSide, ev.lane, cd);
+      } else if (ev.kind === 'float_num' && ev.text) {
+        if (typeof spawnFloatNumber === 'function') spawnFloatNumber(mSide, ev.lane ?? -1, ev.text, ev.color || '#fde047');
       } else if (ev.kind === 'toast' && ev.cid) {
         const cd = cardsById[ev.cid] || ev.cardData;
         if (cd) await showTriggeredEffectToast(cd, ev.msg || '', 260);

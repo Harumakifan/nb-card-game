@@ -1082,15 +1082,26 @@
   <span id="oppDisconnectText">对手暂时离开，等待重连中 (15s)...</span>
 </div>
 
-<!-- 💾 单机游戏重连/恢复上次战斗询问弹窗 -->
-<div id="resumePveModal" class="hidden" style="position:fixed;inset:0;z-index:220;background:rgba(2,6,23,0.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:16px;">
-  <div style="width:100%;max-width:420px;background:#0f172a;border:2px solid #fbbf24;border-radius:18px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.85);display:flex;flex-direction:column;gap:12px;text-align:center;">
-    <div style="font-size:32px;">💾</div>
-    <div style="font-size:17px;font-weight:900;color:#fde047;">检测到未完成的单人对战</div>
-    <div id="resumePveDesc" style="font-size:13px;color:#cbd5e1;line-height:1.5;">上次战斗进行到第 1 回合，是否继续上次的战斗？</div>
-    <div style="display:flex;gap:10px;margin-top:6px;">
-      <button id="btnResumePveYes" class="ol-btn-emerald" style="padding:10px;font-size:13px;">▶️ 继续上次战斗</button>
-      <button id="btnResumePveNo" class="ol-btn-slate" style="padding:10px 14px;font-size:13px;">🆕 返回主菜单</button>
+<!-- 💾 单机游戏重连/恢复上次战斗询问弹窗（精致暗金版） -->
+<div id="resumePveModal" class="hidden" style="position:fixed;inset:0;z-index:220;background:rgba(2,6,23,0.82);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:16px;">
+  <div style="width:100%;max-width:400px;background:radial-gradient(120% 80% at 50% 0%, rgba(251,191,36,0.16), transparent 65%), linear-gradient(180deg,#111827 0%,#060b16 100%);border:1.5px solid rgba(251,191,36,0.65);border-radius:22px;padding:24px 22px 20px;box-shadow:0 24px 64px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.08);display:flex;flex-direction:column;gap:14px;text-align:center;">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+      <span style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,rgba(251,191,36,0.22),rgba(14,165,233,0.18));border:1px solid rgba(251,191,36,0.5);display:flex;align-items:center;justify-content:center;font-size:20px;">⚔️</span>
+      <div style="text-align:left;">
+        <div style="font-size:16px;font-weight:900;color:#fef08a;letter-spacing:0.04em;">继续上次单人挑战</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px;">已为你自动保存上次离开时的战场进度</div>
+      </div>
+    </div>
+    <div style="background:rgba(2,6,23,0.72);border:1px solid rgba(148,163,184,0.2);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;">
+        <span id="resumePveTurnBadge" style="padding:2px 10px;border-radius:999px;background:rgba(251,191,36,0.16);border:1px solid rgba(251,191,36,0.45);color:#fde047;">第 1 回合</span>
+        <span id="resumePveHpBadge" style="color:#e2e8f0;">我方 30 ❤️ VS 敌方 30 ❤️</span>
+      </div>
+      <div id="resumePveDesc" style="font-size:12px;color:#94a3b8;line-height:1.5;text-align:left;">检测到一场尚未结束的单人对局进度，是否立刻恢复战场继续挑战？</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:2px;">
+      <button id="btnResumePveNo" type="button" style="padding:10px 12px;border-radius:12px;background:#1e293b;border:1px solid #475569;color:#cbd5e1;font-size:13px;font-weight:800;cursor:pointer;">放弃存档</button>
+      <button id="btnResumePveYes" type="button" style="padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#059669,#10b981);border:1px solid #6ee7b7;color:#fff;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 18px rgba(16,185,129,0.35);">⚔️ 继续战斗</button>
     </div>
   </div>
 </div>

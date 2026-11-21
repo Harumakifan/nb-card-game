@@ -7,6 +7,8 @@ try { localStorage.removeItem('CF_SAVED_PVE_BATTLE_V1'); localStorage.removeItem
 
 function savePveBattleProgress() {
   if (battleMode !== 'pve' || battle.gameOver || !battle.leaders[0] || !battle.leaders[1]) return;
+  const mulOv = document.getElementById('mulliganModal');
+  if (mulOv && !mulOv.classList.contains('hidden')) return;
   const menuOv = document.getElementById('mainMenuOverlay');
   if (menuOv && !menuOv.classList.contains('hidden')) return;
   try {
@@ -34,26 +36,52 @@ function checkAndPromptSavedPveBattle() {
     }
     const modal = document.getElementById('resumePveModal');
     const desc = document.getElementById('resumePveDesc');
-    if (desc) desc.textContent = `上次单人挑战进行到第 ${saved.snap.turn || 1} 回合（我方 ${saved.snap.leaders[0]?.hp ?? 30} 血 / 敌方 ${saved.snap.leaders[1]?.hp ?? 30} 血），是否继续上次的战斗？`;
+    const turnBadge = document.getElementById('resumePveTurnBadge');
+    const hpBadge = document.getElementById('resumePveHpBadge');
+    const tNum = saved.snap.turn || 1;
+    const myHp = saved.snap.leaders?.[0]?.hp ?? 30;
+    const aiHp = saved.snap.leaders?.[1]?.hp ?? 30;
+    if (turnBadge) turnBadge.textContent = `第 ${tNum} 回合`;
+    if (hpBadge) hpBadge.textContent = `我方 ${myHp} ❤️  VS  敌方 ${aiHp} ❤️`;
+    if (desc) desc.textContent = '检测到一场尚未结束的单人对局进度，是否立刻恢复战场继续挑战？';
     if (modal) { modal.classList.remove('hidden'); modal.style.display = 'flex'; }
 
     document.getElementById('btnResumePveYes').onclick = () => {
-      modal.classList.add('hidden');
-      document.getElementById('mainMenuOverlay')?.classList.add('hidden');
-      battleMode = 'pve';
-      aiDeckArchetype = saved.aiDeckArchetype || 'dragon';
-      aiDifficulty = saved.aiDifficulty || 'normal';
-      cfApplyBattleView(saved.snap);
-      battle.activeSide = 0;
-      battle.gameOver = false;
-      battle.animating = false;
-      document.getElementById('mulliganModal')?.classList.add('hidden');
-      syncOnlineAvatarsAndHud();
-      renderAllBattleUI();
+      try {
+        if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+        document.getElementById('mainMenuOverlay')?.classList.add('hidden');
+        if (typeof _battleSessionSeq !== 'undefined') _battleSessionSeq++;
+        window.CF_SPECTATE_ACTIVE = false;
+        battleMode = 'pve';
+        aiDeckArchetype = saved.aiDeckArchetype || 'dragon';
+        aiDifficulty = saved.aiDifficulty || 'normal';
+        const selM = document.getElementById('selectBattleMode'); if (selM) selM.value = 'pve';
+        if (typeof switchScreen === 'function') switchScreen('battle');
+        cfApplyBattleView(saved.snap);
+        battle.activeSide = 0;
+        battle.gameOver = false;
+        battle.animating = false;
+        battle.pendingPlay = null;
+        battle.pendingActivate = null;
+        // 若存档时处于起手未开打状态（双方能量均为0），自动补满第1回合能量防止无法操作
+        if (battle.leaders[0] && (battle.leaders[0].maxEnergy || 0) <= 0) {
+          battle.leaders[0].maxEnergy = 1;
+          battle.leaders[0].energy = 1;
+        }
+        document.getElementById('mulliganModal')?.classList.add('hidden');
+        document.getElementById('onlineWaitOverlay')?.classList.add('hidden');
+        document.getElementById('victoryDefeatModal')?.classList.add('hidden');
+        syncOnlineAvatarsAndHud();
+        renderAllBattleUI();
+      } catch (err) {
+        console.error('[resumePve] 恢复存档失败，已清理损坏存档:', err);
+        clearPveBattleProgress();
+        if (typeof initNewBattle === 'function') initNewBattle();
+      }
     };
     document.getElementById('btnResumePveNo').onclick = () => {
       clearPveBattleProgress();
-      modal.classList.add('hidden');
+      if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
     };
   } catch (e) {}
 }

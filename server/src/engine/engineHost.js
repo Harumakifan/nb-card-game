@@ -50,6 +50,35 @@ const SERVER_OVERRIDES = new vm.Script(`
   syncOnlineAvatarsAndHud = () => undefined;
   showOnlineVictoryDefeatModal = (iWon) => { __cfServer.onGameOver(iWon); };
   recordLocalVfx = (ev) => { __cfServer.events.push(ev); };
+  // v1.89 服务端零开销特效录制：替代静默置空，把双方全部核心特效同步给客户端完整播放
+  const __origGetLaneDOM = getLaneDOM;
+  getLaneDOM = (side, lane) => {
+    const el = __origGetLaneDOM(side, lane);
+    if (el) { el._cfSide = side; el._cfLane = lane; if (el.dataset) { el.dataset.side = String(side); el.dataset.lane = String(lane); } }
+    return el;
+  };
+  playRowWideVFX = async (side, vfxKind) => { recordLocalVfx({ kind: 'row_vfx', side, vfxKind: vfxKind || 'fire_aoe' }); };
+  playAoeShockwaveVFX = async (side, color) => { recordLocalVfx({ kind: 'aoe_wave', side, color: color || '#38bdf8' }); };
+  playSacrificeBloodRitualSVG = async (side, lane) => { recordLocalVfx({ kind: 'sac_vfx', side, lane }); };
+  playDestroyShatterVFX = async (side, lane, color) => { recordLocalVfx({ kind: 'destroy_vfx', side, lane, color: color || '#f43f5e' }); };
+  playBanishVoidSVG = async (side, lane) => { recordLocalVfx({ kind: 'banish_vfx', side, lane }); };
+  playDeckToBoardInvocationVFX = async (side, lane, cardData) => { recordLocalVfx({ kind: 'invoke_vfx', side, lane, cid: cardData && cardData.id ? cardData.id : '' }); };
+  playExtraEnergyVFX = async (side) => { recordLocalVfx({ kind: 'extra_energy_vfx', side }); };
+  playOverdrawBurnAnim = async (side, cardData) => { recordLocalVfx({ kind: 'overdraw_vfx', side, cid: cardData && cardData.id ? cardData.id : '' }); };
+  playBoardToHandBounceVFX = async (side, lane, cardData) => { recordLocalVfx({ kind: 'bounce_vfx', side, lane, cid: cardData && cardData.id ? cardData.id : '' }); };
+  spawnFloatNumber = (side, lane, text, color) => { recordLocalVfx({ kind: 'float_num', side, lane, text: String(text || ''), color: color || '#fde047' }); };
+  playSynergyBeam = async (fromEl, toEl, color) => {
+    const _res = (el) => {
+      if (!el) return null;
+      if (typeof el._cfSide === 'number') return { side: el._cfSide, lane: typeof el._cfLane === 'number' ? el._cfLane : -1 };
+      if (el.id === 'playerLeaderNode') return { side: 0, lane: -1 };
+      if (el.id === 'enemyLeaderNode' || el.id === 'enemyAvatarCanvasWrap') return { side: 1, lane: -1 };
+      if (el.dataset && el.dataset.side !== undefined) return { side: Number(el.dataset.side), lane: Number(el.dataset.lane ?? -1) };
+      return null;
+    };
+    const f = _res(fromEl), t = _res(toEl);
+    if (f && t) recordLocalVfx({ kind: 'beam', fromSide: f.side, fromLane: f.lane, toSide: t.side, toLane: t.lane, color: color || '#38bdf8' });
+  };
 `, { filename: 'cardforge-server-overrides.js' });
 
 // 纯渲染/特效函数（不修改对局状态）。仅在服务器上置空。
@@ -59,11 +88,9 @@ export const UI_STUBS = [
   'openCardDetailPanel', 'openCrestDetailPanel', 'showSacrificeGuideBanner', 'updatePendingLeftTopView',
   'playTurnStartBanner', 'startTurnCountdownTimer', 'stopTurnCountdownTimer', 'startMulliganCountdownTimer',
   'stopMulliganCountdownTimer', 'savePveBattleProgress', 'cfTraceSnapshot', 'cfTracePush', 'setHandCollapsed',
-  'spawnFloatNumber', 'playRowWideVFX', 'playMeleeImpactVFX', 'playAoeShockwaveVFX', 'playLeaderDamageTypeVFX',
-  'playDestroyShatterVFX', 'playDeckToBoardInvocationVFX', 'playBoardToHandBounceVFX', 'animateCardTrajectory',
-  'playOverdrawBurnAnim', 'playShuffleIntoDeckAnim', 'playExtraEnergyVFX', 'playHandCardWaveAndVanishVFX',
-  'playBanishVoidSVG', 'playMinionEnterVfx', 'playCardEnterVFX', 'playHandCardVFX', 'playOverflowBanishAnim',
-  'playSacrificeBloodRitualSVG', 'showOppSpellShowcase', 'spawnImpactRing',
+  'playMeleeImpactVFX', 'playLeaderDamageTypeVFX', 'animateCardTrajectory', 'playShuffleIntoDeckAnim',
+  'playHandCardWaveAndVanishVFX', 'playMinionEnterVfx', 'playCardEnterVFX', 'playHandCardVFX',
+  'playOverflowBanishAnim', 'showOppSpellShowcase', 'spawnImpactRing',
 ];
 // 注意：任何会修改对局状态（或接受回调）的函数都不能放进这里，test/engine.test.js 有静态检查。
 // 注意：showTriggeredEffectToast / playSynergyBeam / playLastWordsTriggerVFX / playCrestTriggerVFX

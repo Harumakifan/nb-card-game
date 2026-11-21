@@ -473,11 +473,18 @@ async function cfDrainStateQueue() {
 async function cfReplayServerEvents(m, mySideActor) {
   const cause = m.cause || {};
   const events = Array.isArray(m.events) ? m.events : [];
-  if (cause.kind === 'PLAY' && !mySideActor) {
-    await replayOpponentActionsOnClient({ cid: cause.cid, cardType: cause.cardType, lane: cause.lane, sacCount: cause.sacCount, vfxList: events });
+  if (cause.kind === 'PLAY') {
     const played = cause.cid ? cardsById[cause.cid] : null;
-    if (played && played.type === 'spell') { sfx.play('synergy'); showOppSpellShowcase(played); }
-    return;
+    if (played) sfx.play(played.rarity === '传说' ? 'legend' : 'play');
+    if (!mySideActor) {
+      await replayOpponentActionsOnClient({ cid: cause.cid, cardType: cause.cardType, lane: cause.lane, sacCount: cause.sacCount, vfxList: events });
+      if (played && played.type === 'spell') { sfx.play('synergy'); showOppSpellShowcase(played); }
+      return;
+    }
+    if (played && played.type === 'spell') sfx.play('synergy');
+  } else if (cause.kind === 'ACTIVATE') {
+    sfx.play('synergy');
+  } else if (cause.kind === 'END_TURN' && !mySideActor) {
   }
   if (events.length) await replayRecordedVfxList(events);
 }
@@ -540,11 +547,16 @@ async function cfOnMatchEnd(m) {
     if (!OnlineState.isSpectator) return;
     const winnerName = m.winner === 'host' ? (OnlineState.hostName || '1P') : (m.winner === 'guest' ? (OnlineState.guestName || '2P') : '');
     battle.gameOver = true;
+    battle.animating = false;
     renderAllBattleUI();
     showGameAlert(winnerName ? `对局结束：【${winnerName}】获胜！` : '对局结束：平局', '🏁');
+    setTimeout(() => { if (OnlineState.isSpectator && typeof stopSpectatingRoom === 'function') stopSpectatingRoom(); }, 2600);
     return;
   }
-  if (!OnlineState.inMatch) return;
+  // 防止 ROOM_STATE 先到达把 inMatch 置假导致 MATCH_END 被静默丢弃、玩家卡在战斗画面
+  const onBattleScreen = !document.getElementById('screenBattle')?.classList.contains('hidden');
+  const vrHidden = document.getElementById('versusRoomModal')?.classList.contains('hidden');
+  if (!OnlineState.inMatch && !(battleMode === 'pvp_online' && onBattleScreen && vrHidden)) return;
   if (m.wins) { OnlineState.hostWins = m.wins.host || 0; OnlineState.guestWins = m.wins.guest || 0; }
   const reasonText = {
     hp: { win: '你成功击败了联机对手！', lose: '己方主战者生命值归零。', draw: '双方主战者同时倒下，本局平局。' },
@@ -932,6 +944,9 @@ function broadcastOnlineSync() {}
 
 function showOnlineVictoryDefeatModal(iWon, subText, isDraw = false) {
   battle.gameOver = true;
+  battle.animating = false;
+  OnlineState.awaitingServer = false;
+  OnlineState._replayingVfx = false;
   stopTurnCountdownTimer();
   stopMulliganCountdownTimer();
   document.getElementById('mulliganModal')?.classList.add('hidden');
@@ -939,7 +954,10 @@ function showOnlineVictoryDefeatModal(iWon, subText, isDraw = false) {
   resetOppDisconnectMonitor();
   syncOnlineAvatarsAndHud();
   const modal = document.getElementById('victoryDefeatModal');
-  if (!modal) return;
+  if (!modal) {
+    returnToVersusRoomAfterMatch();
+    return;
+  }
   const iconEl = document.getElementById('vicBadgeIcon');
   const titleEl = document.getElementById('vicTitleTxt');
   const subEl = document.getElementById('vicSubTxt');
@@ -955,27 +973,40 @@ function showOnlineVictoryDefeatModal(iWon, subText, isDraw = false) {
   if (subEl) subEl.textContent = `${subText || ''}（2秒后自动返回对战房间...）`;
   modal.classList.remove('hidden');
   modal.style.display = 'flex';
-  setTimeout(() => {
+  if (OnlineState._vicReturnTimer) clearTimeout(OnlineState._vicReturnTimer);
+  OnlineState._vicReturnTimer = setTimeout(() => {
+    OnlineState._vicReturnTimer = null;
     if (btnAgain) btnAgain.classList.remove('hidden');
     if (btnDeck) btnDeck.classList.remove('hidden');
-    if (battleMode === 'pvp_online' && OnlineState.roomId) returnToVersusRoomAfterMatch();
+    if (battleMode === 'pvp_online') {
+      returnToVersusRoomAfterMatch();
+    }
   }, 2200);
 }
 
 function returnToVersusRoomAfterMatch() {
+  if (OnlineState._vicReturnTimer) { clearTimeout(OnlineState._vicReturnTimer); OnlineState._vicReturnTimer = null; }
   stopTurnCountdownTimer();
   stopMulliganCountdownTimer();
+  battle.animating = false;
   OnlineState.inMatch = false;
+  OnlineState.awaitingServer = false;
+  OnlineState._replayingVfx = false;
   OnlineState.seat = -1;
   OnlineState.myReady = false;
   OnlineState.oppReady = false;
   OnlineState.myMulliganDone = false;
   OnlineState.oppMulliganDone = false;
-  document.getElementById('victoryDefeatModal')?.classList.add('hidden');
+  const vm = document.getElementById('victoryDefeatModal');
+  if (vm) { vm.classList.add('hidden'); vm.style.display = 'none'; }
   document.getElementById('mulliganModal')?.classList.add('hidden');
   document.getElementById('onlineWaitOverlay')?.classList.add('hidden');
   cfSendPresence();
-  openVersusRoomModal();
+  if (OnlineState.roomId) {
+    openVersusRoomModal();
+  } else {
+    openOnlineLobbyModal();
+  }
 }
 
 function initBattleUiShellForOnline() {

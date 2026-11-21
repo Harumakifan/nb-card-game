@@ -1,6 +1,7 @@
 function activateHandCardDragGhost() {
   if (!dragState.active || !dragState.inst || dragState.moved) return;
   dragState.moved = true;
+  if (typeof sfx !== 'undefined' && sfx && typeof sfx.play === 'function') sfx.play('drag_charge');
   const ghost = document.getElementById('dragGhostBox');
   ghost.innerHTML = '';
   const cardNode = buildHandCardDOM(dragState.inst.data, dragState.inst);

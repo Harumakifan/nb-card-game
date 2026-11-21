@@ -54,6 +54,22 @@ class SoundSynth {
       osc.frequency.setValueAtTime(520, now); osc.frequency.exponentialRampToValueAtTime(1040, now + 0.2);
       gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
       osc.start(now); osc.stop(now + 0.2);
+    } else if (type === 'heal') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now); osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.22);
+      gain.gain.setValueAtTime(0.14, now); gain.gain.linearRampToValueAtTime(0.008, now + 0.22);
+      osc.start(now); osc.stop(now + 0.22);
+    } else if (type === 'drag_charge') {
+      // 手牌拖动起手：轻盈上扬的蓄势待发音效（带节流防连响）
+      if (nowMs - (this._lastDragChargeMs || 0) < 220) { osc.disconnect(); gain.disconnect(); return; }
+      this._lastDragChargeMs = nowMs;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(360, now);
+      osc.frequency.exponentialRampToValueAtTime(740, now + 0.13);
+      gain.gain.setValueAtTime(0.008, now);
+      gain.gain.linearRampToValueAtTime(0.095, now + 0.045);
+      gain.gain.exponentialRampToValueAtTime(0.006, now + 0.15);
+      osc.start(now); osc.stop(now + 0.16);
     }
   }
 }

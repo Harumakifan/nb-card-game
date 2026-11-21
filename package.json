@@ -1,7 +1,7 @@
 {
   "name": "cardforge",
   "private": true,
-  "version": "1.88.0",
+  "version": "1.90.2",
   "description": "CardForge · 冥刻之诗 —— 前端静态资源 + Node 权威对战服务器",
   "type": "module",
   "engines": {

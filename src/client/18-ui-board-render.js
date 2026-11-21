@@ -587,7 +587,7 @@ function buildHandCardDOM(cardData, inst = null, deckBadgeCount = 0) {
     <div class="sv-glint-clip-wrap" style="position:absolute;inset:0;z-index:19;pointer-events:none;clip-path:${templeRes.clipPoly};-webkit-clip-path:${templeRes.clipPoly};">${getShatterGlintsHTML(cardData)}</div>
     ${deckBadgeCount > 0 ? `<span class="sv-deck-qty-badge">×${deckBadgeCount}</span>` : ''}
     ${isEnhReady ? `<span class="sv-enhance-chip absolute z-30 px-1.5 py-0.5 rounded-full font-black text-[9px] shadow" style="top:8px;right:8px;transform:translateZ(4px);">⚡爆能</span>` : (isCrystReady ? `<span class="sv-enhance-chip absolute z-30 px-1.5 py-0.5 rounded-full font-black text-[9px] shadow" style="top:8px;right:8px;transform:translateZ(4px);background:linear-gradient(135deg,#0284c7,#22d3ee);color:#082f49;border-color:#bae6fd;">${(cardData.ast && cardData.ast.accelerate) ? '✨激奏' : '💎结晶'}</span>` : '')}
-    ${(inst && getCardGrantedEffectsList(inst, 'hand').length > 0) ? `<span class="cf-hand-effect-bang" title="此手牌已获得附加效果，点击查看详情">!</span>` : ''}
+    ${(inst && typeof hasHandCardExtraEffectBadge === 'function' && hasHandCardExtraEffectBadge(inst)) ? `<span class="cf-hand-effect-bang" title="此手牌已获得额外效果，点击查看详情">!</span>` : ''}
     ${(inst && getDynamicCardXValue(cardData, inst) !== null) ? `<span style="top:50%;right:6px;transform:translateY(-50%);" class="absolute z-30 px-1.5 py-0.5 rounded-md bg-indigo-950/95 border border-cyan-300 text-[10px] font-black text-cyan-200 shadow" title="当前 X 数值">X=${getDynamicCardXValue(cardData, inst)}</span>` : ''}
     ${(inst && getHandCardLiveCounterBadge(cardData, inst)) ? `<span style="bottom:30px;left:50%;transform:translateX(-50%) translateZ(4px);white-space:nowrap;pointer-events:none;" class="absolute z-30 px-1.5 py-0.5 rounded-md bg-rose-950/95 border border-amber-300 text-[9px] font-black text-amber-200 shadow">${getHandCardLiveCounterBadge(cardData, inst)}</span>` : ''}
   `;
@@ -1145,10 +1145,26 @@ document.addEventListener('click', (e) => {
   } else if (e.target && e.target.closest && e.target.closest('#btnConfirmExtraEndTurn')) {
     const _eem = document.getElementById('extraEnergyEndTurnModal'); if (_eem) _eem.style.display = 'none';
     const curSide = (battleMode === 'pvp_pass') ? battle.activeSide : 0;
-    sfx.play('click');
+    if (typeof playEndTurnButtonVFX === 'function') playEndTurnButtonVFX();
     executeEndTurnSequence(curSide);
   }
 });
+
+function playEndTurnButtonVFX() {
+  const btn = document.getElementById('btnTurnOrb');
+  if (!btn) return;
+  btn.classList.remove('cf-end-turn-pulse');
+  void btn.offsetWidth;
+  btn.classList.add('cf-end-turn-pulse');
+  const rect = btn.getBoundingClientRect();
+  const ring = document.createElement('div');
+  ring.className = 'cf-end-turn-shockwave';
+  ring.style.left = `${rect.left + rect.width / 2}px`;
+  ring.style.top = `${rect.top + rect.height / 2}px`;
+  document.body.appendChild(ring);
+  setTimeout(() => ring.remove(), 480);
+  setTimeout(() => btn.classList.remove('cf-end-turn-pulse'), 380);
+}
 
 document.getElementById('btnTurnOrb').addEventListener('click', () => {
   if ((battleMode === 'pvp_online' ? onlineIsMyTurn() : (battle.activeSide === 0 || battleMode === 'pvp_pass')) && !battle.gameOver && !battle.animating) {
@@ -1167,7 +1183,7 @@ document.getElementById('btnTurnOrb').addEventListener('click', () => {
         return;
       }
     }
-    sfx.play('click');
+    playEndTurnButtonVFX();
     executeEndTurnSequence(curSide);
   }
 });
