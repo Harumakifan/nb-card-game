@@ -7,7 +7,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CardForge · 冥刻之诗 — 影之诗：超凡世界桌面版 & 规范用语卡牌设计器</title>
-<link rel="stylesheet" href="styles.css?v=124">
+<link rel="stylesheet" href="styles.css?v=125">
 </head>
 <body class="sv-arena-bg select-none" oncontextmenu="return false;">
 
@@ -1247,11 +1247,13 @@
   <span id="cfArtPillPct" style="color:#38bdf8;">0%</span>
 </div>
 
-<script src="artEngine.js?v=124"></script>
-<script src="game.js?v=124"></script>
+<script src="artEngine.js?v=125"></script>
+<script src="game.js?v=125"></script>
 <script>
 (function loadCardArtPackWithProgress() {
   const ART_PACK_URL = 'cards_art_pack.js?art=1';
+  const PACK_DB_NAME = 'CardForgeArtPackBlobCache_v1';
+  const PACK_STORE = 'packs';
   const overlay = document.getElementById('cfArtLoadingOverlay');
   const pill = document.getElementById('cfArtLoadingPill');
   const bar = document.getElementById('cfArtProgressBar');
@@ -1264,6 +1266,46 @@
   let minimized = false;
   let finished = false;
   let showTimer = null;
+
+  function openPackCacheDB() {
+    return new Promise((resolve, reject) => {
+      try {
+        const req = indexedDB.open(PACK_DB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(PACK_STORE)) db.createObjectStore(PACK_STORE);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      } catch (e) { reject(e); }
+    });
+  }
+
+  async function readCachedPackBlob(key) {
+    try {
+      const db = await openPackCacheDB();
+      return await new Promise((resolve) => {
+        const tx = db.transaction(PACK_STORE, 'readonly');
+        const req = tx.objectStore(PACK_STORE).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch (e) { return null; }
+  }
+
+  async function saveCachedPackBlob(key, blob) {
+    try {
+      const db = await openPackCacheDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction(PACK_STORE, 'readwrite');
+        const store = tx.objectStore(PACK_STORE);
+        store.clear(); // 清理旧版本卡图包，避免重复占用手机存储空间
+        store.put(blob, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) {}
+  }
 
   function hideAll() {
     if (showTimer) { clearTimeout(showTimer); showTimer = null; }
@@ -1306,7 +1348,18 @@
     if (typeof window.refreshAllCardArtUI === 'function') {
       try { window.refreshAllCardArtUI(); } catch (e) {}
     }
-    setTimeout(hideAll, 160);
+    setTimeout(hideAll, 120);
+  }
+
+  function runBlobScript(blob) {
+    const blobUrl = URL.createObjectURL(blob);
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = blobUrl;
+      s.onload = () => { URL.revokeObjectURL(blobUrl); resolve(); };
+      s.onerror = (e) => { URL.revokeObjectURL(blobUrl); reject(e); };
+      document.body.appendChild(s);
+    });
   }
 
   function injectScriptFallback(url) {
@@ -1318,12 +1371,12 @@
     document.body.appendChild(s);
   }
 
-  async function startLoad(forceShow) {
+  async function startLoad(forceNetwork) {
     finished = false;
     if (errNote) errNote.classList.add('hidden');
     if (btnRetry) btnRetry.classList.add('hidden');
     if (btnBg) btnBg.textContent = '先进入游戏（后台加载）';
-    setProgress(2, '正在连接卡图资源包...');
+    setProgress(2, '正在检查本地卡图缓存...');
 
     // 本地双击 file:// 协议直接走原生 script，避免 CORS
     if (location.protocol === 'file:') {
@@ -1331,13 +1384,30 @@
       return;
     }
 
-    // 延迟 260ms 再显示遮罩：已命中浏览器本地缓存的回访玩家几乎瞬间完成，完全不闪屏
+    // 1. 优先从 IndexedDB 本地持久化缓存读取（刷新/重启/断网均秒开，0流量！）
+    if (!forceNetwork) {
+      const cachedBlob = await readCachedPackBlob(ART_PACK_URL);
+      if (cachedBlob && cachedBlob.size > 100000) {
+        try {
+          await runBlobScript(cachedBlob);
+          finishWithRefresh();
+          return;
+        } catch (e) {}
+      }
+      // 若用户通过 Shift+I 本地导入过全套卡图，直接跳过网络下载
+      if (window.CF_SVG_ART_PACK && Object.keys(window.CF_SVG_ART_PACK).length >= 180) {
+        finishWithRefresh();
+        return;
+      }
+    }
+
+    // 2. 首次进入或卡图版本号变更时，通过网络流式下载并写入 IndexedDB 持久缓存
     if (showTimer) clearTimeout(showTimer);
-    if (forceShow) showOverlay();
-    else showTimer = setTimeout(() => { if (!finished && !minimized) showOverlay(); }, 260);
+    if (forceNetwork) showOverlay();
+    else showTimer = setTimeout(() => { if (!finished && !minimized) showOverlay(); }, 200);
 
     try {
-      const resp = await fetch(ART_PACK_URL, { cache: 'default' });
+      const resp = await fetch(ART_PACK_URL, { cache: 'force-cache' });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
       const contentLen = parseInt(resp.headers.get('content-length') || '0', 10);
@@ -1356,9 +1426,9 @@
             const mb = (loaded / 1048576).toFixed(1);
             if (contentLen > 0) {
               const totalMb = (contentLen / 1048576).toFixed(1);
-              setProgress((loaded / contentLen) * 95, `已下载 ${mb} MB / ${totalMb} MB`);
+              setProgress((loaded / contentLen) * 94, `已下载 ${mb} MB / ${totalMb} MB`);
             } else {
-              const pct = Math.min(94, (loaded / estTotal) * 94);
+              const pct = Math.min(93, (loaded / estTotal) * 93);
               setProgress(pct, `已下载 ${mb} MB...`);
             }
           }
@@ -1369,22 +1439,17 @@
         loaded = buf.byteLength;
       }
 
+      setProgress(96, '正在写入本地持久化缓存...');
+      const blob = new Blob(chunks, { type: 'application/javascript' });
+      // 异步写入 IndexedDB，同时立即解析卡图让玩家进游戏
+      saveCachedPackBlob(ART_PACK_URL, blob);
+
       setProgress(98, '正在解析卡图资源...');
       await new Promise(r => setTimeout(r, 30));
-
-      const blob = new Blob(chunks, { type: 'application/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = blobUrl;
-        s.onload = () => { URL.revokeObjectURL(blobUrl); resolve(); };
-        s.onerror = (e) => { URL.revokeObjectURL(blobUrl); reject(e); };
-        document.body.appendChild(s);
-      });
+      await runBlobScript(blob);
       finishWithRefresh();
     } catch (e) {
       if (showTimer) { clearTimeout(showTimer); showTimer = null; }
-      // 若本地 IndexedDB 已导入卡图，静默关闭即可
       if (window.CF_SVG_ART_PACK && Object.keys(window.CF_SVG_ART_PACK).length > 30) {
         hideAll();
         return;
@@ -1397,9 +1462,7 @@
     }
   }
 
-  // 等待短暂首屏渲染后启动加载
-  setTimeout(() => startLoad(false), 60);
-})();
+  setTimeout(() => startLoad(false), 50);})();
 </script>
 
 <script>

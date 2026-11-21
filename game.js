@@ -18977,7 +18977,7 @@ if (document.readyState === 'loading') {
 window.onload = bootGameNow;
 
 
-const GAME_VERSION = '1.76';
+const GAME_VERSION = '1.77';
 window.GAME_VERSION = GAME_VERSION;
 
 
