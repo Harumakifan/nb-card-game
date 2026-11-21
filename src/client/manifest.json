@@ -17,6 +17,7 @@
   "13b-engine-sync.js",
   "14-pvp-pass.js",
   "15-online-net.js",
+  "15b-ai-helpers.js",
   "16-ai.js",
   "17-ui-detail-panel.js",
   "18-ui-board-render.js",

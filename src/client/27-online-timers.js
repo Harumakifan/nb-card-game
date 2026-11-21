@@ -18,7 +18,9 @@ function startMulliganCountdownTimer() {
     return;
   }
   if (badge0) badge0.style.display = 'inline-block';
-  _mulliganRemain = 30;
+  // 以服务器下发的截止时间为准（服务器到点会自动按"不换牌"处理）
+  const mulDeadline = OnlineState.mulliganDeadline || 0;
+  _mulliganRemain = mulDeadline ? Math.max(0, Math.round((mulDeadline - cfServerNow()) / 1000)) : (OnlineState.timers.mulliganSeconds || 30);
   const badge = document.getElementById('mulliganTimerBadge');
   if (badge) badge.textContent = `⏱️ 换牌倒计时：${_mulliganRemain}s`;
   _mulliganTimer = setInterval(() => {
@@ -27,7 +29,7 @@ function startMulliganCountdownTimer() {
       stopMulliganCountdownTimer();
       return;
     }
-    _mulliganRemain -= 1;
+    _mulliganRemain = mulDeadline ? Math.max(0, Math.round((mulDeadline - cfServerNow()) / 1000)) : _mulliganRemain - 1;
     if (badge) {
       badge.textContent = `⏱️ 换牌倒计时：${Math.max(0, _mulliganRemain)}s`;
       badge.style.color = _mulliganRemain <= 8 ? '#fb7185' : '#fde047';
@@ -52,7 +54,9 @@ function startTurnCountdownTimer() {
     return;
   }
   if (badge0) badge0.style.display = 'inline-block';
-  _turnRemain = 60;
+  const turnDeadline = OnlineState.turnDeadline || 0;
+  const calcRemain = () => (turnDeadline ? Math.max(0, Math.round((turnDeadline - cfServerNow()) / 1000)) : _turnRemain);
+  _turnRemain = turnDeadline ? calcRemain() : (OnlineState.timers.turnSeconds || 60);
   const badge = document.getElementById('turnTimerBadge');
   if (badge) {
     badge.textContent = `⏱️ ${_turnRemain}s`;
@@ -72,7 +76,7 @@ function startTurnCountdownTimer() {
         (hoModal && !hoModal.classList.contains('hidden'))) {
       return;
     }
-    _turnRemain -= 1;
+    _turnRemain = turnDeadline ? calcRemain() : _turnRemain - 1;
     if (badge) {
       badge.textContent = `⏱️ ${Math.max(0, _turnRemain)}s`;
       badge.style.color = _turnRemain <= 15 ? '#fb7185' : '#7dd3fc';
@@ -84,14 +88,12 @@ function startTurnCountdownTimer() {
       urgentRing.classList.toggle('hidden', !showUrgent);
     }
     if (_turnRemain <= 0) {
+      // 联机：服务器到点会自动结束回合并推送新状态，这里只收起未完成的出牌面板
       stopTurnCountdownTimer();
-      const isMyAction = battleMode === 'pvp_online' ? onlineIsMyTurn() : (battle.activeSide === 0 || battleMode === 'pvp_pass');
-      if (isMyAction && !battle.gameOver && !battle.animating) {
+      if (onlineIsMyTurn()) {
         cancelPendingPlayToHand();
         document.getElementById('handPickModal')?.classList.add('hidden');
         document.getElementById('modeChoiceCenterPanel')?.classList.add('hidden');
-        showTriggeredEffectToast({ id: 'sys_notice', name: '战局提示', type: 'spell', rarity: '传说', energy: 0, bones: 0, sacrifice: 0 }, '⌛ 60秒思考时间到，自动结束回合！', 0);
-        executeEndTurnSequence(0);
       }
     }
   }, 1000);
@@ -101,8 +103,7 @@ function startTurnCountdownTimer() {
 document.getElementById('btnPvpSurrender')?.addEventListener('click', () => {
   if (battleMode !== 'pvp_online' || !OnlineState.inMatch || battle.gameOver) return;
   showGameConfirm('确定要向对手投降认输吗？（认输后将返回对战房间）', () => {
-    sendReliableRoomPacket({ type: 'PVP_SURRENDER', who: OnlineState.nickname });
-    showOnlineVictoryDefeatModal(false, '你选择了投降认输，点击下方按钮回到对战房间。');
+    cfNet.send({ type: 'SURRENDER' });
   }, '🏳️');
 });
 
@@ -119,8 +120,7 @@ document.getElementById('btnTopSurrenderExit')?.addEventListener('click', () => 
   if (battleMode === 'pvp_online' && OnlineState.inMatch && !battle.gameOver) {
     showGameConfirm('确定要向对手投降认输并返回对战房间吗？', () => {
       battle.__cfSurrendered = true;
-      sendReliableRoomPacket({ type: 'PVP_SURRENDER', who: OnlineState.nickname }, 12);
-      showOnlineVictoryDefeatModal(false, '你选择了投降认输，即将自动回到对战房间。');
+      cfNet.send({ type: 'SURRENDER' });
     }, '🏳️');
     return;
   }
@@ -137,40 +137,3 @@ document.getElementById('btnTopSurrenderExit')?.addEventListener('click', () => 
     if (typeof applyUserAvatarToUI === 'function') applyUserAvatarToUI();
   }, '🏳️');
 });
-
-// 覆盖 sendReliableRoomPacket：对关键回合交接包提高重传次数，并在连接断开时自动重连
-sendReliableRoomPacket = function(pkt, maxRetries = 12) {
-  if (!OnlineState.roomId) return;
-  const pktId = `${OnlineState.peerId}_${++OnlineState.pktSeq}_${Date.now()}`;
-  const fullPkt = { ...pkt, pktId, senderAvatar: userAvatarConfig, senderName: OnlineState.nickname };
-  let tries = 0;
-  const attempt = () => {
-    if (OnlineState.ackedPkts.has(pktId) || !OnlineState.roomId || tries >= maxRetries) return;
-    if (!OnlineState.connected && typeof connectOnlineNetwork === 'function') {
-      connectOnlineNetwork();
-    }
-    tries++;
-    sendRoomPacket(fullPkt);
-    setTimeout(attempt, 1000);
-  };
-  attempt();
-};
-
-// 每 4 秒检查一次联机双方回合是否卡死（防丢包死锁）
-setInterval(() => {
-  if (battleMode !== 'pvp_online' || !OnlineState.inMatch || battle.gameOver) return;
-  if (!OnlineState.connected && typeof connectOnlineNetwork === 'function') {
-    connectOnlineNetwork();
-    return;
-  }
-  if (!onlineIsMyTurn()) {
-    // 我方正在等待对手：发送轻量回合核对心跳
-    sendRoomPacket({
-      type: 'PING_TURN',
-      turn: battle.turn,
-      activeRole: OnlineState.activeRole
-    });
-  }
-}, 4000);
-
-

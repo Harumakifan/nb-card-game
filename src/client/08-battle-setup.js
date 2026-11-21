@@ -361,6 +361,19 @@ document.getElementById('btnConfirmMulligan').addEventListener('click', async ()
     if (swapped) swappedIndices.push(idx);
   });
 
+  if (cfIsOnlineClient()) {
+    // 联机：牌库只在服务器上，换牌由服务器执行；回传 STATE(MULLIGAN) 后 cfApplyState 刷新手牌并关闭弹窗
+    if (!cfNet.send({ type: 'MULLIGAN', swapIdx: swappedIndices })) {
+      battle.mulliganLocked = false;
+      if (mModal) mModal.style.pointerEvents = 'auto';
+      showGameAlert('网络未连接，请稍候重试');
+      return;
+    }
+    const waitTxt = document.getElementById('onlineWaitText');
+    if (waitTxt) waitTxt.textContent = '⏳ 正在等待对手完成开局换牌...';
+    return;
+  }
+
   if (swappedIndices.length > 0) {
     const swapSlots = document.getElementById('mulliganSwapSlots');
     const keepSlots = document.getElementById('mulliganKeepSlots');
@@ -442,21 +455,6 @@ document.getElementById('btnConfirmMulligan').addEventListener('click', async ()
   }
 
   document.getElementById('mulliganModal').classList.add('hidden');
-  if (battleMode === 'pvp_online') {
-    OnlineState.myMulliganDone = true;
-    sendReliableRoomPacket({
-      type: 'MULLIGAN_DONE',
-      hand: battle.leaders[0].hand.map(serializeCardInst),
-      deck: battle.leaders[0].deck.map(serializeCardInst)
-    });
-    if (OnlineState.oppMulliganDone) {
-      await startOnlineTurnOneIfFirst();
-    } else {
-      const waitOv = document.getElementById('onlineWaitOverlay');
-      if (waitOv) waitOv.classList.remove('hidden');
-    }
-    return;
-  }
   if (_sid !== _battleSessionSeq) return;
   if (battleMode === 'pve' && battle.firstPlayerSide === 1) {
     await beginTurnSequence(1);

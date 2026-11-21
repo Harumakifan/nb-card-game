@@ -3,18 +3,16 @@
 // ============================================================================
 OnlineState.recordedVfx = [];
 
-function recordLocalVfx(ev) {
-  if (battleMode === 'pvp_online' && OnlineState.inMatch && onlineIsMyTurn() && !OnlineState._replayingVfx) {
-    OnlineState.recordedVfx.push(ev);
-  }
-}
+// v1.88：对局在服务器结算，特效事件由服务器录制（engineHost 覆盖本函数）；浏览器端无需录制
+function recordLocalVfx(ev) {}
 
 async function replayRecordedVfxList(vfxList) {
   if (!Array.isArray(vfxList) || vfxList.length === 0) return;
   OnlineState._replayingVfx = true;
   try {
     for (const ev of vfxList) {
-      const mSide = ev.side === 0 ? 1 : 0;
+      // 服务器已按接收者视角转换（side 0 = 自己 / 观战时为房主），无需再镜像
+      const mSide = ev.side === 1 ? 1 : 0;
       if (ev.kind === 'attack_strike') {
         const mToSide = 1 - mSide;
         const atkCell = getLaneDOM(mSide, ev.fromLane);
@@ -73,8 +71,8 @@ async function replayRecordedVfxList(vfxList) {
         }
         await sleep(110);
       } else if (ev.kind === 'beam') {
-        const mfSide = ev.fromSide === 0 ? 1 : 0;
-        const mtSide = ev.toSide === 0 ? 1 : 0;
+        const mfSide = ev.fromSide === 1 ? 1 : 0;
+        const mtSide = ev.toSide === 1 ? 1 : 0;
         const fEl = ev.fromLane >= 0 ? getLaneDOM(mfSide, ev.fromLane) : document.getElementById(mfSide === 0 ? 'playerLeaderNode' : 'enemyLeaderNode');
         const tEl = ev.toLane >= 0 ? getLaneDOM(mtSide, ev.toLane) : document.getElementById(mtSide === 0 ? 'playerLeaderNode' : 'enemyLeaderNode');
         if (fEl && tEl) await playSynergyBeam(fEl, tEl, ev.color || '#38bdf8', 300);

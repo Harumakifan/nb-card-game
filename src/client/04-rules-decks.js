@@ -12,10 +12,26 @@ const cardsById = {};
 const cardsByName = {};
 let allCards = [];
 
+// v1.88 安全：导入的卡牌（含他人分享的 JSON）会出现在大量 innerHTML 模板中，
+// 统一在入口把 HTML 敏感字符换成全角字符，并限制 id 只能是安全标识符。
+const CF_CARD_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+function cfSanitizeCardStrings(v, depth = 0) {
+  if (typeof v === 'string') return v.replace(/</g, '＜').replace(/>/g, '＞').replace(/"/g, '＂').replace(/`/g, '｀');
+  if (!v || typeof v !== 'object' || depth > 6) return v;
+  if (Array.isArray(v)) return v.map(x => cfSanitizeCardStrings(x, depth + 1));
+  const out = {};
+  for (const k of Object.keys(v)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+    out[k] = cfSanitizeCardStrings(v[k], depth + 1);
+  }
+  return out;
+}
+
 function registerCardsFromDesigner(cardArray) {
   let importedCount = 0;
-  cardArray.forEach(raw => {
-    if (!raw || !raw.id || !raw.name) return;
+  cardArray.forEach(rawIn => {
+    if (!rawIn || typeof rawIn !== 'object' || !CF_CARD_ID_RE.test(String(rawIn.id || '')) || !rawIn.name) return;
+    const raw = cfSanitizeCardStrings(rawIn);
     const c = Object.assign({
       en: "", type: "minion", rarity: "普通", race: "", sacrificeCond: "",
       faith: 0, counter: 0, energy: 0, sacrifice: 0, bones: 0,

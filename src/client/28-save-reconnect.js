@@ -1,8 +1,9 @@
 // ============================================================================
 // v20 单机存档继续询问 + 联机切屏15秒等待重连机制 + 幽灵清理
 // ============================================================================
-const PVE_SAVE_KEY = 'CF_SAVED_PVE_BATTLE_V1';
-const PVP_SESSION_KEY = 'CF_ACTIVE_PVP_SESSION_V1';
+// v1.88：存档改为通用视图格式（13b-engine-sync.js），旧版 V1 存档不再读取
+const PVE_SAVE_KEY = 'CF_SAVED_PVE_BATTLE_V2';
+try { localStorage.removeItem('CF_SAVED_PVE_BATTLE_V1'); localStorage.removeItem('CF_ACTIVE_PVP_SESSION_V1'); } catch (e) {}
 
 function savePveBattleProgress() {
   if (battleMode !== 'pve' || battle.gameOver || !battle.leaders[0] || !battle.leaders[1]) return;
@@ -27,7 +28,7 @@ function checkAndPromptSavedPveBattle() {
     const raw = localStorage.getItem(PVE_SAVE_KEY);
     if (!raw) return;
     const saved = JSON.parse(raw);
-    if (!saved || !saved.snap || saved.snap.gameOver || Date.now() - (saved.ts || 0) > 86400000) {
+    if (!saved || !saved.snap || saved.snap.v !== 2 || saved.snap.gameOver || Date.now() - (saved.ts || 0) > 86400000) {
       clearPveBattleProgress();
       return;
     }
@@ -42,13 +43,10 @@ function checkAndPromptSavedPveBattle() {
       battleMode = 'pve';
       aiDeckArchetype = saved.aiDeckArchetype || 'dragon';
       aiDifficulty = saved.aiDifficulty || 'normal';
-      battle.turn = saved.snap.turn || 1;
+      cfApplyBattleView(saved.snap);
       battle.activeSide = 0;
       battle.gameOver = false;
-      battle.leaders[0] = deserializeLeaderFromRemote(saved.snap.leaders[0], 0);
-      battle.leaders[1] = deserializeLeaderFromRemote(saved.snap.leaders[1], 1);
-      battle.board[0] = (saved.snap.board[0] || []).map(c => deserializeCardInst(c, 0));
-      battle.board[1] = (saved.snap.board[1] || []).map(c => deserializeCardInst(c, 1));
+      battle.animating = false;
       document.getElementById('mulliganModal')?.classList.add('hidden');
       syncOnlineAvatarsAndHud();
       renderAllBattleUI();
@@ -60,93 +58,44 @@ function checkAndPromptSavedPveBattle() {
   } catch (e) {}
 }
 
-// 联机：对手离开检测与 15 秒重连倒计时
-OnlineState.lastOppActiveTs = Date.now();
+// 联机：对手断线横幅（由服务器的 OPP_AWAY / OPP_BACK 驱动；判负由服务器在宽限期结束时裁决）
 OnlineState.oppAwayTimer = null;
 OnlineState.oppAwayRemain = 45;
-OnlineState._localAwayDelayTimer = null;
-OnlineState._localAwaySent = false;
 
 function resetOppDisconnectMonitor() {
-  OnlineState.lastOppActiveTs = Date.now();
   if (OnlineState.oppAwayTimer) { clearInterval(OnlineState.oppAwayTimer); OnlineState.oppAwayTimer = null; }
   document.getElementById('oppDisconnectBanner')?.classList.add('hidden');
 }
 
-function startOppDisconnectCountdown(whoName) {
-  if (OnlineState.oppAwayTimer || !OnlineState.inMatch || battle.gameOver) return;
-  OnlineState.oppAwayRemain = 45;
+function startOppDisconnectCountdown(whoName, graceSec) {
+  if (!OnlineState.inMatch || battle.gameOver) return;
+  if (OnlineState.oppAwayTimer) clearInterval(OnlineState.oppAwayTimer);
+  OnlineState.oppAwayRemain = Math.max(1, Number(graceSec) || OnlineState.timers.awayGraceSeconds || 45);
   const banner = document.getElementById('oppDisconnectBanner');
   const txt = document.getElementById('oppDisconnectText');
+  const render = () => {
+    if (txt) txt.textContent = `⚠️ 对手【${whoName || '对方'}】连接中断，等待重连 (${Math.max(0, OnlineState.oppAwayRemain)}s)...`;
+  };
   if (banner) banner.classList.remove('hidden');
-  if (txt) txt.textContent = `⚠️ 对手【${whoName || '对方'}】暂时离开，等待重连 (${OnlineState.oppAwayRemain}s)...`;
-
+  render();
   OnlineState.oppAwayTimer = setInterval(() => {
-    if (!OnlineState.inMatch || battle.gameOver) {
-      resetOppDisconnectMonitor();
-      return;
-    }
+    if (!OnlineState.inMatch || battle.gameOver) { resetOppDisconnectMonitor(); return; }
     OnlineState.oppAwayRemain -= 1;
-    if (txt) txt.textContent = `⚠️ 对手【${whoName || '对方'}】暂时离开，等待重连 (${Math.max(0, OnlineState.oppAwayRemain)}s)...`;
-    if (OnlineState.oppAwayRemain <= 0) {
-      resetOppDisconnectMonitor();
-      showOnlineVictoryDefeatModal(true, `对手离开超过 45 秒未重连，系统判定对方放弃战斗，你获得胜利！`);
-    }
+    render();
+    if (OnlineState.oppAwayRemain <= 0) { clearInterval(OnlineState.oppAwayTimer); OnlineState.oppAwayTimer = null; }
   }, 1000);
 }
 
-// 切屏 / 切后台时：不直接退出游戏，而是通知对手“我暂时离开，正在等待重连”
+// 切屏 / 切后台：只更新在线状态；连接保持则对局不受影响，连接被系统断开时服务器负责宽限与判负
 document.addEventListener('visibilitychange', () => {
-  if (battleMode === 'pvp_online' && OnlineState.inMatch && !battle.gameOver && OnlineState.roomId) {
-    if (document.hidden) {
-      if (OnlineState._localAwayDelayTimer) clearTimeout(OnlineState._localAwayDelayTimer);
-      OnlineState._localAwaySent = false;
-      // 切屏 8 秒宽限期：短暂切出回消息不误报“对方离开”
-      OnlineState._localAwayDelayTimer = setTimeout(() => {
-        if (document.hidden && battleMode === 'pvp_online' && OnlineState.inMatch && !battle.gameOver && OnlineState.roomId) {
-          OnlineState._localAwaySent = true;
-          sendRoomPacket({ type: 'PLAYER_AWAY', who: OnlineState.nickname });
-        }
-      }, 8000);
-      try {
-        localStorage.setItem(PVP_SESSION_KEY, JSON.stringify({
-          ts: Date.now(),
-          roomId: OnlineState.roomId,
-          role: OnlineState.role,
-          roomName: OnlineState.roomName,
-          hostName: OnlineState.hostName,
-          guestName: OnlineState.guestName
-        }));
-      } catch (e) {}
-    } else {
-      if (!OnlineState.connected && typeof connectOnlineNetwork === 'function') connectOnlineNetwork();
-      setTimeout(() => {
-        sendRoomPacket({ type: 'PLAYER_BACK', who: OnlineState.nickname });
-      }, 300);
-    }
-  } else if (battleMode === 'pve' && document.hidden) {
-    savePveBattleProgress();
-  }
+  if (battleMode === 'pve' && document.hidden) savePveBattleProgress();
+  if (!document.hidden && cfNet.wantOpen && !OnlineState.connected) cfNet.connect();
   if (typeof publishOnlinePresence === 'function') publishOnlinePresence(false);
 });
 
 window.addEventListener('beforeunload', () => {
-  publishOnlinePresence(true);
-  if (OnlineState.role === 'host' && OnlineState.roomId && !OnlineState.inMatch) {
-    publishLobbyRoomMeta(true);
-  }
   if (battleMode === 'pve') savePveBattleProgress();
 });
-
-// 每 3 秒监测联机心跳，超过 7 秒无回应或收到 PLAYER_AWAY 则启动 15 秒等待重连横幅
-setInterval(() => {
-  if (battleMode !== 'pvp_online' || !OnlineState.inMatch || battle.gameOver) return;
-  sendRoomPacket({ type: 'PRESENCE_PING' });
-  if (OnlineState.connected && Date.now() - OnlineState.lastOppActiveTs > 45000 && !OnlineState.oppAwayTimer) {
-    const oppName = OnlineState.role === 'host' ? OnlineState.guestName : OnlineState.hostName;
-    startOppDisconnectCountdown(oppName);
-  }
-}, 3000);
 
 
 function performLeaveDeckOrDesigner() {
@@ -157,7 +106,7 @@ function performLeaveDeckOrDesigner() {
   if (backBtn) backBtn.textContent = '🏠 返回主菜单';
   if (OnlineState.returnToVersusAfterDeck && OnlineState.roomId && !OnlineState.inMatch) {
     OnlineState.returnToVersusAfterDeck = false;
-    sendReliableRoomPacket({ type: 'PLAYER_EDITING_DECK', editing: false });
+    cfNet.send({ type: 'EDITING_DECK', editing: false });
     switchScreen('battle');
     openVersusRoomModal();
     return;

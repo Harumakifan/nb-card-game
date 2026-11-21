@@ -658,7 +658,7 @@
     </div>
     <span style="font-size:11px;color:#94a3b8;">仅用于设计并导出 JSON，不影响当前对战卡组</span>
   </div>
-  <iframe id="designerV23Frame" style="width:100%;flex:1;border:none;background:#060b18;"></iframe>
+  <iframe id="designerV23Frame" title="卡牌设计器" style="width:100%;flex:1;border:none;background:#060b18;"></iframe>
 </div>
 
 <div id="screenCode" class="hidden w-screen h-screen pt-12 pb-4 px-6 flex flex-col bg-slate-950/95">
@@ -701,17 +701,12 @@
         <span class="text-xl">🌐</span>
         <div>
           <div class="text-sm font-black text-cyan-200">网页实时联机大厅 <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-900 text-cyan-200 border border-cyan-500 ml-1">跨设备 / 密码房</span></div>
-          <div class="text-[11px] text-slate-400">无需下载，直接建房或输入密码加入他人房间对战</div>
+          <div class="text-[11px] text-slate-400">无需下载，直接建房或输入密码加入他人房间对战 · 服务器裁判，杜绝作弊与偷看手牌</div>
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         <span id="onlineConnBadge" class="px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-900 text-amber-200 border border-amber-500">🟡 未连接</span>
         <input id="onlineNickInput" type="text" maxlength="14" placeholder="你的昵称" style="width:96px;padding:4px 8px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#fff;font-size:12px;font-weight:700;">
-        <select id="onlineServerMode" style="padding:4px 8px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#a5f3fc;font-size:12px;font-weight:700;">
-          <option value="cloud">☁️ 公共云端大厅</option>
-          <option value="custom">🖥️ 自定义私服</option>
-        </select>
-        <input id="onlineCustomWsInput" type="text" placeholder="ws://localhost:8080" value="ws://localhost:8080" class="hidden" style="width:150px;padding:4px 8px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#fff;font-size:12px;">
         <button id="btnOnlineReconnect" class="ol-btn-slate">🔄 重连</button>
         <button id="btnCloseOnlineLobby" class="ol-btn-rose">✕ 关闭</button>
       </div>
@@ -729,7 +724,7 @@
           </div>
         </div>
         <div id="onlineRoomList" style="flex:1;min-height:220px;overflow-y:auto;" class="space-y-2 pr-1">
-          <div class="text-center text-slate-500 text-xs py-10">正在连接云端联机大厅并扫描房间...</div>
+          <div class="text-center text-slate-500 text-xs py-10">正在连接对战服务器并扫描房间...</div>
         </div>
         <div style="border-top:1px solid #334155;padding-top:10px;margin-top:4px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">

@@ -103,6 +103,9 @@ function renderDefaultCustomAvatarDataURI(cfg) {
   const c = Object.assign({ backdrop: 'star', hairStyle: 'twintail', hairColor: 'emerald', eyeStyle: 'sharp', outfit: 'knight', armorColor: 'obsidian', wings: 'light', weapon: 'lance', headgear: 'horns' }, src);
   const cacheKey = `${c.backdrop}_${c.hairStyle}_${c.hairColor}_${c.eyeStyle}_${c.outfit}_${c.armorColor}_${c.wings}_${c.weapon}_${c.headgear}`;
   if (_customAvatarCache[cacheKey]) return _customAvatarCache[cacheKey];
+  // 头像配置可能来自大厅里的其他玩家：缓存设上限，避免无限增长
+  const _cacheKeys = Object.keys(_customAvatarCache);
+  if (_cacheKeys.length > 200) _cacheKeys.forEach(k => delete _customAvatarCache[k]);
 
   const bd = AVATAR_PRESETS.backdrop.find(x => x.id === c.backdrop) || AVATAR_PRESETS.backdrop[0];
   const hc = AVATAR_PRESETS.hairColor.find(x => x.id === c.hairColor) || AVATAR_PRESETS.hairColor[0];

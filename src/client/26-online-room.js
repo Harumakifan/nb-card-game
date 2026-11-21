@@ -1,13 +1,6 @@
 // ============================================================================
 // v17 联机对战房间 (#versusRoomModal) + 在线玩家10秒邀请 + 可靠同步引擎
 // ============================================================================
-OnlineState.onlinePlayers = new Map();
-OnlineState.myReady = false;
-OnlineState.oppReady = false;
-OnlineState.matchAcked = false;
-OnlineState.pendingInvite = null;
-OnlineState.inviteTimer = null;
-OnlineState.returnToVersusAfterDeck = false;
 
 function getPresenceStatus() {
   if (typeof document !== 'undefined' && document.hidden) return 'away';
@@ -24,16 +17,11 @@ function getPresenceStatus() {
   return 'idle';
 }
 
-function publishOnlinePresence(offline = false) {
-  if (!OnlineState.connected || OnlineState.mode !== 'cloud' || !OnlineState.client) return;
-  const payload = offline ? '' : JSON.stringify({
-    peerId: OnlineState.peerId,
-    nickname: OnlineState.nickname,
-    avatar: userAvatarConfig,
-    status: getPresenceStatus(),
-    ts: Date.now()
-  });
-  OnlineState.client.publish(`${ONLINE_LOBBY_PREFIX}/players/${OnlineState.peerId}`, payload, true);
+/** 上报在线状态；profileChanged=true 时同时同步昵称与头像（由服务器清洗后广播） */
+function publishOnlinePresence(profileChanged = false) {
+  if (!OnlineState.connected) return;
+  if (profileChanged) cfNet.send({ type: 'SET_PROFILE', nickname: OnlineState.nickname, avatar: userAvatarConfig });
+  cfSendPresence();
 }
 
 function renderOnlinePlayerList() {
@@ -44,7 +32,6 @@ function renderOnlinePlayerList() {
   const others = [];
   for (const [pid, p] of OnlineState.onlinePlayers.entries()) {
     if (!p || !p.peerId || pid === OnlineState.peerId) continue;
-    if (now - (p.ts || 0) > 15000) continue;
     others.push(p);
   }
   if (cntEl) cntEl.textContent = `(${others.length} 人在线)`;
@@ -75,7 +62,7 @@ function renderOnlinePlayerList() {
       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
         <img src="${avUri}" style="width:30px;height:30px;border-radius:8px;border:1px solid #fbbf24;object-fit:cover;">
         <div style="min-width:0;">
-          <div style="font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.nickname || '决斗者'}</div>
+          <div style="font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.nickname || '决斗者')}</div>
           <div style="font-size:11px;font-weight:700;color:${stInfo.col};">${stInfo.txt}</div>
         </div>
       </div>
@@ -90,43 +77,11 @@ function renderOnlinePlayerList() {
 }
 
 function inviteOnlinePlayer(targetPlayer) {
-  if (!OnlineState.connected || OnlineState.mode !== 'cloud' || !OnlineState.client) {
-    showGameAlert('当前仅公共云端大厅支持在线玩家直接邀请！');
-    return;
-  }
-  // 先自动创建一间专属对战房并进入等待
-  const nick = (document.getElementById('onlineNickInput')?.value || '').trim() || OnlineState.nickname;
-  OnlineState.nickname = nick;
-  const rid = Math.random().toString(36).slice(2, 8).toUpperCase();
-  OnlineState.roomId = rid;
-  OnlineState.role = 'host';
-  OnlineState.roomName = `${nick} 的邀请对战房`;
-  OnlineState.roomPwdHash = '';
-  OnlineState.hostId = OnlineState.peerId;
-  OnlineState.hostName = nick;
-  OnlineState.guestId = '';
-  OnlineState.guestName = '';
-  OnlineState.myReady = false;
-  OnlineState.oppReady = false;
-  OnlineState.inMatch = false;
-
-  OnlineState.client.subscribe(`${ONLINE_LOBBY_PREFIX}/room/${rid}/c2h`);
-  publishLobbyRoomMeta(false);
-  if (OnlineState.heartbeatTimer) clearInterval(OnlineState.heartbeatTimer);
-  OnlineState.heartbeatTimer = setInterval(() => publishLobbyRoomMeta(false), 4000);
-
-  OnlineState.client.publish(`${ONLINE_LOBBY_PREFIX}/invite/${targetPlayer.peerId}`, JSON.stringify({
-    type: 'INVITE_REQ',
-    fromId: OnlineState.peerId,
-    fromName: nick,
-    fromAvatar: userAvatarConfig,
-    roomId: rid,
-    roomName: OnlineState.roomName,
-    ts: Date.now()
-  }), false);
-
-  openVersusRoomModal();
-  showTriggeredEffectToast({ id: 'sys_notice', name: '战局提示', type: 'spell', rarity: '传说', energy: 0, bones: 0, sacrifice: 0 }, `📩 已向【${targetPlayer.nickname}】发送对战邀请（等待对方10秒内响应）`, 0);
+  if (!OnlineState.connected) { showGameAlert('尚未连接对战服务器，请稍候再试！'); return; }
+  if (!targetPlayer || !targetPlayer.peerId) return;
+  cfReadNickInput();
+  // 服务器会在需要时自动创建一间专属对战房，并把限时邀请码只发给被邀请人
+  cfNet.send({ type: 'INVITE', targetId: targetPlayer.peerId });
 }
 
 function showBattleInviteToast(inv) {
@@ -138,7 +93,8 @@ function showBattleInviteToast(inv) {
   document.getElementById('inviterNameText').textContent = `${inv.fromName || '玩家'} 邀请你进入对战房间`;
   toast.classList.remove('hidden');
 
-  let remain = 10;
+  let remain = Math.max(1, Math.min(60, Number(inv.expiresInSec) || 10));
+  const total = remain;
   const numEl = document.getElementById('inviteCountdownNum');
   const barEl = document.getElementById('inviteProgressBar');
   if (numEl) numEl.textContent = `${remain}s`;
@@ -148,7 +104,7 @@ function showBattleInviteToast(inv) {
   OnlineState.inviteTimer = setInterval(() => {
     remain -= 1;
     if (numEl) numEl.textContent = `${Math.max(0, remain)}s`;
-    if (barEl) barEl.style.width = `${Math.max(0, remain * 10)}%`;
+    if (barEl) barEl.style.width = `${Math.max(0, (remain / total) * 100)}%`;
     if (remain <= 0) {
       clearInterval(OnlineState.inviteTimer);
       OnlineState.inviteTimer = null;
@@ -191,10 +147,12 @@ function updateVersusRoomUI() {
   if (sb) sb.textContent = `🏆 本房战绩：${OnlineState.hostWins || 0} 胜 : ${OnlineState.guestWins || 0} 胜`;
   const hOn = document.getElementById('vrHostOnlineTag');
   const gOn = document.getElementById('vrGuestOnlineTag');
-  if (hOn) { hOn.textContent = '🟢 在线'; hOn.style.color = '#34d399'; }
+  const hostOnline = OnlineState.role === 'host' ? true : OnlineState.oppOnline !== false;
+  const guestOnline = OnlineState.role === 'guest' ? true : OnlineState.oppOnline !== false;
+  if (hOn) { hOn.textContent = hostOnline ? '🟢 在线' : '🔴 离线/重连中'; hOn.style.color = hostOnline ? '#34d399' : '#fb7185'; }
   if (gOn) {
-    gOn.textContent = OnlineState.guestId ? '🟢 在线' : '⚪ 等待加入';
-    gOn.style.color = OnlineState.guestId ? '#34d399' : '#64748b';
+    gOn.textContent = OnlineState.guestId ? (guestOnline ? '🟢 在线' : '🔴 离线/重连中') : '⚪ 等待加入';
+    gOn.style.color = OnlineState.guestId ? (guestOnline ? '#34d399' : '#fb7185') : '#64748b';
   }
 
   const isHost = OnlineState.role === 'host';
@@ -246,8 +204,8 @@ function updateVersusRoomUI() {
     startBtn.classList.add('hidden');
     hintEl.textContent = '等待挑战者加入房间（可点击大厅中的在线玩家直接邀请）...';
   } else if (hostReady && guestReady) {
-    startBtn.classList.toggle('hidden', !isHost);
-    hintEl.textContent = isHost ? '🎉 双方已就绪，正在自动进入战场（若未跳转可点击下方按钮）...' : '🎉 双方已就绪，正在等待房主同步开局...';
+    startBtn.classList.add('hidden');
+    hintEl.textContent = '🎉 双方已就绪，服务器正在开局...';
   } else {
     startBtn.classList.add('hidden');
     hintEl.textContent = (hostReady && guestReady) ? '✅ 双方已准备，正在等待房主开启对战...' : '请双方调整各自卡组并点击「准备」按钮';
@@ -266,7 +224,7 @@ document.getElementById('vrGuestDeckSelect')?.addEventListener('change', (e) => 
 const enterDeckFromVersus = () => {
   OnlineState.returnToVersusAfterDeck = true;
   OnlineState.myReady = false;
-  sendReliableRoomPacket({ type: 'PLAYER_EDITING_DECK', editing: true });
+  cfNet.send({ type: 'EDITING_DECK', editing: true });
   document.getElementById('versusRoomModal').classList.add('hidden');
   document.getElementById('btnNavDeck')?.click();
   const backBtn = document.getElementById('btnTopBackMenu');
@@ -290,21 +248,20 @@ document.getElementById('btnVrLeaveRoom')?.addEventListener('click', () => {
 });
 document.getElementById('btnVrToggleReady')?.addEventListener('click', () => {
   if (!OnlineState.roomId) return;
-  OnlineState.myReady = !OnlineState.myReady;
-  sendReliableRoomPacket({
-    type: 'PLAYER_READY',
-    ready: OnlineState.myReady,
-    deckIds: getActiveDeckIdsForOnline(),
-    avatar: userAvatarConfig
-  });
-  updateVersusRoomUI();
-  if (OnlineState.role === 'host' && OnlineState.guestId && OnlineState.myReady && OnlineState.oppReady && !OnlineState.inMatch) {
-    setTimeout(() => {
-      if (OnlineState.myReady && OnlineState.oppReady && !OnlineState.inMatch) startOnlineMatchAsHost();
-    }, 300);
+  const wantReady = !OnlineState.myReady;
+  if (wantReady) {
+    const ids = getActiveDeckIdsForOnline();
+    if (ids.length !== RULES.deckSize) {
+      showGameAlert(`联机卡组必须恰好 ${RULES.deckSize} 张（当前 ${ids.length} 张），请先编辑卡组。`);
+      return;
+    }
   }
+  // 以服务器回传的 ROOM 状态为准（卡组校验失败会收到 ERROR deck_invalid）
+  cfNet.send({ type: 'READY', ready: wantReady, deckIds: wantReady ? getActiveDeckIdsForOnline() : undefined });
 });
-document.getElementById('btnVrStartMatch')?.addEventListener('click', () => startOnlineMatchAsHost());
+document.getElementById('btnVrStartMatch')?.addEventListener('click', () => {
+  showGameAlert('双方都点击「准备」后，服务器会自动开局。');
+});
 
 document.getElementById('btnAcceptInvite')?.addEventListener('click', () => {
   const inv = OnlineState.pendingInvite;
@@ -312,10 +269,13 @@ document.getElementById('btnAcceptInvite')?.addEventListener('click', () => {
   document.getElementById('battleInviteToast').classList.add('hidden');
   OnlineState.pendingInvite = null;
   if (!inv) return;
-  sendJoinRoomRequest({ roomId: inv.roomId, roomName: inv.roomName, hostId: inv.fromId, hostName: inv.fromName, hasPassword: false }, '');
+  cfReadNickInput();
+  cfNet.send({ type: 'INVITE_ACCEPT', roomId: inv.roomId, inviteId: inv.inviteId });
 });
 document.getElementById('btnDeclineInvite')?.addEventListener('click', () => {
   if (OnlineState.inviteTimer) { clearInterval(OnlineState.inviteTimer); OnlineState.inviteTimer = null; }
+  const inv = OnlineState.pendingInvite;
+  if (inv) cfNet.send({ type: 'INVITE_DECLINE', roomId: inv.roomId, inviteId: inv.inviteId });
   document.getElementById('battleInviteToast').classList.add('hidden');
   OnlineState.pendingInvite = null;
 });

@@ -6531,3 +6531,16 @@ body.lethal-slowmo #screenBattle {
     height: 216px !important;
   }
 }
+
+/* v1.88 观战视角：未公开的手牌显示为卡背 */
+.sv-hand-card.sv-hand-card-back {
+  width: 112px; height: 160px; border-radius: 12px; flex: none;
+  background: linear-gradient(160deg, #1e293b 0%, #0f172a 55%, #020617 100%);
+  border: 2px solid rgba(251, 191, 36, 0.7); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+  transform: translateY(var(--fan-y, 0)) rotate(var(--fan-rot, 0));
+}
+.sv-hand-card-back-emblem {
+  width: 46px; height: 46px; border-radius: 9999px;
+  border: 2px solid rgba(56, 189, 248, 0.55); background: radial-gradient(circle, rgba(14, 165, 233, 0.35), rgba(12, 74, 110, 0.15));
+}
