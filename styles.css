@@ -6080,10 +6080,10 @@ body.lethal-slowmo #screenBattle {
    v1.72: 艺术双环逆向旋转星芒选中法阵（半透明通透感，不遮挡卡面）
    ============================================================================ */
 .cf-inspect-reticle {
-  width: 92px !important;
-  height: 92px !important;
-  opacity: 0.36 !important;
-  filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.75)) drop-shadow(0 0 14px rgba(56, 189, 248, 0.55));
+  width: 100px !important;
+  height: 100px !important;
+  opacity: 0.88 !important;
+  filter: drop-shadow(0 0 3px rgba(2, 6, 23, 0.95)) drop-shadow(0 0 9px rgba(250, 204, 21, 0.95)) drop-shadow(0 0 16px rgba(56, 189, 248, 0.85));
 }
 .cf-reticle-svg {
   width: 100%;
@@ -6372,5 +6372,162 @@ body.lethal-slowmo #screenBattle {
   }
   #tutBodyScroll {
     padding: 12px !important;
+  }
+}
+
+
+/* ============================================================================
+   v1.79: 全局卡面最高清晰度锁定（杜绝悬停/移开/点击前后清晰度跳变）+ 换牌背景框防消失
+   ============================================================================ */
+
+/* 1. 彻底解除手牌/换牌/图鉴/详情弹窗的 GPU 低清离屏缓存与子层 translateZ 拍扁 */
+#playerHandZone .sv-hand-card,
+#mulliganModal .sv-hand-card,
+#deckGalleryGrid .sv-hand-card,
+#deckInspectedCardSlot .sv-hand-card {
+  will-change: auto !important;
+  transform-style: flat !important;
+  backface-visibility: visible !important;
+  -webkit-backface-visibility: visible !important;
+  filter: none !important;
+}
+#playerHandZone .sv-hand-card .sv-temple-frame-svg,
+#playerHandZone .sv-hand-card .sv-temple-art-clip,
+#playerHandZone .sv-hand-card .sv-card-art-img,
+#playerHandZone .sv-hand-card .sv-holo-foil,
+#playerHandZone .sv-hand-card .sv-glint-clip-wrap,
+#mulliganModal .sv-hand-card .sv-temple-frame-svg,
+#mulliganModal .sv-hand-card .sv-temple-art-clip,
+#mulliganModal .sv-hand-card .sv-card-art-img,
+#mulliganModal .sv-hand-card .sv-holo-foil,
+#mulliganModal .sv-hand-card .sv-glint-clip-wrap,
+#deckGalleryGrid .sv-hand-card .sv-temple-frame-svg,
+#deckGalleryGrid .sv-hand-card .sv-temple-art-clip,
+#deckGalleryGrid .sv-hand-card .sv-card-art-img,
+#deckGalleryGrid .sv-hand-card .sv-holo-foil,
+#deckGalleryGrid .sv-hand-card .sv-glint-clip-wrap,
+#deckInspectedCardSlot .sv-hand-card .sv-temple-frame-svg,
+#deckInspectedCardSlot .sv-hand-card .sv-temple-art-clip,
+#deckInspectedCardSlot .sv-hand-card .sv-card-art-img,
+#deckInspectedCardSlot .sv-hand-card .sv-holo-foil,
+#deckInspectedCardSlot .sv-hand-card .sv-glint-clip-wrap {
+  transform: none !important;
+  will-change: auto !important;
+  backface-visibility: visible !important;
+  -webkit-backface-visibility: visible !important;
+}
+
+/* 2. 手牌区：移除静态扇形旋转与悬停 scale 缩放，纯整数像素位移，平时与点击后同等最高清 */
+#playerHandZone .sv-hand-card,
+#playerHandZone .sv-hand-card.sv-temple-card-shell {
+  transform: translateY(var(--fan-y, 0px)) !important;
+  transition: transform 0.14s ease-out !important;
+}
+#playerHandZone:not(.hand-collapsed) .sv-hand-card:hover,
+#playerHandZone:not(.hand-collapsed) .sv-hand-card.sv-temple-card-shell:hover,
+#playerHandZone:not(.hand-collapsed) .sv-hand-card.is-inspected:hover,
+#playerHandZone:not(.hand-collapsed) .sv-hand-card.sv-temple-card-shell.is-inspected:hover {
+  transform: translateY(-52px) scale(1.26) !important;
+  z-index: 85 !important;
+  filter: none !important;
+}
+#playerHandZone.hand-collapsed .sv-hand-card:hover,
+#playerHandZone.hand-collapsed .sv-hand-card.sv-temple-card-shell:hover {
+  transform: translateY(-24px) scale(1.14) !important;
+  z-index: 85 !important;
+  filter: none !important;
+}
+#playerHandZone .sv-hand-card.is-inspected,
+#playerHandZone .sv-hand-card.sv-temple-card-shell.is-inspected {
+  transform: translateY(var(--fan-y, 0px)) !important;
+  filter: none !important;
+}
+
+/* 3. 开局换牌：零 scale 缩放、零透视，悬停与移开均保持最高清晰度 */
+#mulliganModal .sv-hand-card,
+#mulliganModal .sv-hand-card.sv-temple-card-shell,
+#mulliganModal .sv-hand-card.is-inspected {
+  transform: none !important;
+  transition: transform 0.14s ease-out !important;
+}
+#mulliganModal .sv-hand-card:hover,
+#mulliganModal .sv-hand-card.sv-temple-card-shell:hover {
+  transform: translateY(-6px) !important;
+  filter: none !important;
+}
+/* 换牌空槽位 / 拖拽中 / 补牌落地前，下方背景卡牌框始终清晰保留不消失 */
+#mulliganSwapSlots > div:not(.cf-mulligan-has-card),
+#mulliganKeepSlots > div:not(.cf-mulligan-has-card),
+#mulliganSwapSlots > div.cf-mulligan-slot-pending,
+#mulliganKeepSlots > div.cf-mulligan-slot-pending {
+  border: 1.5px solid rgba(71, 85, 105, 0.85) !important;
+  background: rgba(2, 6, 23, 0.58) !important;
+  box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.7) !important;
+}
+
+/* 4. 卡牌编辑器图鉴：取消点击选中后的 perspective/scale(1.07)，点击前后始终最高清 */
+#deckGalleryGrid .sv-hand-card,
+#deckGalleryGrid .sv-hand-card.sv-temple-card-shell,
+#deckGalleryGrid .sv-hand-card.is-inspected,
+#deckGalleryGrid .sv-hand-card.sv-temple-card-shell.is-inspected {
+  transform: none !important;
+  transition: transform 0.14s ease-out !important;
+  filter: none !important;
+}
+#deckGalleryGrid .sv-hand-card:hover,
+#deckGalleryGrid .sv-hand-card.sv-temple-card-shell:hover {
+  transform: translateY(-4px) !important;
+  filter: none !important;
+}
+
+/* 5. 卡牌编辑器详情弹窗：彻底弃用 transform: scale(2.26) 拉伸，改为原生高像素尺寸渲染，悬停前后 100% 锐利无跳变 */
+.deck-detail-enlarged-card {
+  transform: none !important;
+}
+#deckInspectedCardSlot .sv-hand-card,
+#deckInspectedCardSlot .sv-hand-card:hover,
+#deckInspectedCardSlot .sv-hand-card.sv-temple-card-shell,
+#deckInspectedCardSlot .sv-hand-card.sv-temple-card-shell:hover {
+  width: 312px !important;
+  height: 416px !important;
+  transform: none !important;
+  transition: none !important;
+  filter: none !important;
+  margin: 0 !important;
+}
+@media (max-width: 900px), (max-height: 620px) {
+  .deck-detail-enlarged-card {
+    transform: none !important;
+  }
+  #deckInspectedCardSlot .sv-hand-card,
+  #deckInspectedCardSlot .sv-hand-card:hover,
+  #deckInspectedCardSlot .sv-hand-card.sv-temple-card-shell,
+  #deckInspectedCardSlot .sv-hand-card.sv-temple-card-shell:hover {
+    width: 234px !important;
+    height: 312px !important;
+  }
+}
+@media (max-height: 520px) and (max-width: 1024px) {
+  .deck-detail-enlarged-card {
+    transform: none !important;
+  }
+  #deckInspectedCardSlot .sv-hand-card,
+  #deckInspectedCardSlot .sv-hand-card:hover,
+  #deckInspectedCardSlot .sv-hand-card.sv-temple-card-shell,
+  #deckInspectedCardSlot .sv-hand-card.sv-temple-card-shell:hover {
+    width: 186px !important;
+    height: 248px !important;
+  }
+}
+@media (max-width: 680px) and (orientation: portrait) {
+  .deck-detail-enlarged-card {
+    transform: none !important;
+  }
+  #deckInspectedCardSlot .sv-hand-card,
+  #deckInspectedCardSlot .sv-hand-card:hover,
+  #deckInspectedCardSlot .sv-hand-card.sv-temple-card-shell,
+  #deckInspectedCardSlot .sv-hand-card.sv-temple-card-shell:hover {
+    width: 162px !important;
+    height: 216px !important;
   }
 }

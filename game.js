@@ -3181,7 +3181,7 @@ function cfPickDeckAvatar() {
 }
 function cfRecordMatch(resultWin) {
   try {
-    if (!battle || battle.__cfSurrendered) return false;
+    if (!battle || battle.__cfSurrendered || battle.__cfWasSpectate || window.CF_SPECTATE_ACTIVE) return false;
     if (!battle.gameOver) return false;
     if (battleMode !== 'pve') return false;
     const me = battle.leaders[0], ai = battle.leaders[1];
@@ -3366,8 +3366,14 @@ function showSacrificeGuideBanner(stepBadgeText, mainText) {
 }
 
 let _battleSessionSeq = 0;
-function initNewBattle() {
+function initNewBattle(opts = {}) {
   const _curSession = ++_battleSessionSeq;
+  if (!opts || !opts.spectate) {
+    window.CF_SPECTATE_ACTIVE = false;
+  }
+  battle.__cfWasSpectate = Boolean((opts && opts.spectate) || window.CF_SPECTATE_ACTIVE);
+  const _specBadgeInit = document.getElementById('cfSpectateBadge');
+  if (_specBadgeInit) _specBadgeInit.classList.toggle('hidden', !window.CF_SPECTATE_ACTIVE);
   battle.mulliganLocked = false;
   if (typeof _mulliganCardCache !== 'undefined' && _mulliganCardCache && _mulliganCardCache.clear) _mulliganCardCache.clear();
   try { if (typeof cfTraceReset === 'function') cfTraceReset(); } catch (e) {}
@@ -3639,9 +3645,12 @@ function renderMulliganDualBox() {
     const ring = cardEl.querySelector('.mulligan-swap-ring');
     if (ring) ring.classList.toggle('hidden', !isSwapped);
     if (!topSlot || !botSlot) continue;
-    topSlot.classList.toggle('cf-mulligan-has-card', Boolean(isSwapped));
-    botSlot.classList.toggle('cf-mulligan-has-card', !isSwapped);
-    cardEl.style.opacity = (mulliganDrag.active && mulliganDrag.moved && mulliganDrag.idx === i) ? '0' : '1';
+    const isDraggingThis = Boolean(mulliganDrag.active && mulliganDrag.moved && mulliganDrag.idx === i);
+    topSlot.classList.toggle('cf-mulligan-has-card', Boolean(isSwapped) && !isDraggingThis);
+    botSlot.classList.toggle('cf-mulligan-has-card', !isSwapped && !isDraggingThis);
+    topSlot.classList.toggle('cf-mulligan-slot-pending', Boolean(isSwapped) && isDraggingThis);
+    botSlot.classList.toggle('cf-mulligan-slot-pending', !isSwapped && isDraggingThis);
+    cardEl.style.opacity = isDraggingThis ? '0' : '1';
     const targetParent = isSwapped ? topSlot : botSlot;
     const otherParent = isSwapped ? botSlot : topSlot;
     otherParent.querySelectorAll('.sv-hand-card').forEach(x => { if (x !== cardEl) x.remove(); });
@@ -3746,10 +3755,13 @@ document.getElementById('btnConfirmMulligan').addEventListener('click', async ()
     renderMulliganDualBox();
     swappedIndices.forEach(idx => {
       const kSlot = keepSlots.children[idx];
-      if (kSlot && kSlot.firstElementChild) {
-        kSlot.firstElementChild.style.opacity = '0';
-        kSlot.firstElementChild.style.transition = 'none';
-        kSlot.firstElementChild.style.transform = 'translateY(-24px) scale(1.04)';
+      if (kSlot) {
+        kSlot.classList.add('cf-mulligan-slot-pending');
+        if (kSlot.firstElementChild) {
+          kSlot.firstElementChild.style.opacity = '0';
+          kSlot.firstElementChild.style.transition = 'none';
+          kSlot.firstElementChild.style.transform = 'translateY(-24px)';
+        }
       }
     });
 
@@ -3775,9 +3787,12 @@ document.getElementById('btnConfirmMulligan').addEventListener('click', async ()
           endScale: 1.18
         });
       }
-      if (kSlot && kSlot.firstElementChild) {
-        kSlot.firstElementChild.style.opacity = '1';
-        kSlot.firstElementChild.classList.add('sv-glow-green');
+      if (kSlot) {
+        kSlot.classList.remove('cf-mulligan-slot-pending');
+        if (kSlot.firstElementChild) {
+          kSlot.firstElementChild.style.opacity = '1';
+          kSlot.firstElementChild.classList.add('sv-glow-green');
+        }
       }
     }
 
@@ -10867,6 +10882,80 @@ function evaluateBattleContextForAI(side) {
   };
 }
 
+// v1.80 通用 AI 效果+攻击联合伤害评估：综合入场曲/抉择/AOE/攻击时效果伤害与本体攻防，精准识别「效果+平A」联合斩杀与破盾
+function estimateCardEffectDmgToLaneForAI(c, st, oppBoard, laneIdx, choiceIdx, isEnh, effTarget, effTargetSide, oppSide) {
+  if (!c || !c.data || !oppBoard || !oppBoard[laneIdx]) return 0;
+  const fullTxt = String(c.data.fullText || '');
+  let dmg = 0;
+
+  // 1) 超载机皇 (cmwc3gozg0rat) 抉择2：对最多3个敌方随从造成「剩余手牌机械卡数」点伤害
+  if (c.data.id === 'cmwc3gozg0rat' && choiceIdx === 1) {
+    const remHandMechs = (st && st.hand ? st.hand : []).filter(h => h !== c && isMechCard(h.data)).length;
+    if (remHandMechs > 0) {
+      const oppMinionLanes = [0, 1, 2, 3, 4].filter(il => oppBoard[il] && oppBoard[il].data.type === 'minion');
+      // 最多命中3个敌方随从（当前目标列若在前3个或全场<=3个必然命中）
+      if (oppMinionLanes.length <= 3 || oppMinionLanes.slice(0, 3).includes(laneIdx)) {
+        dmg += remHandMechs;
+      }
+    }
+  }
+
+  // 2) 指定单体入场曲伤害（当入场曲目标正好落在当前对位列时叠加）
+  if (effTarget === laneIdx && effTargetSide === oppSide) {
+    const mSingle = fullTxt.match(/造成(\d+)点伤害/);
+    if (mSingle) dmg += Number(mSingle[1]);
+  }
+
+  // 3) 全体/敌方所有随从入场曲 AOE 伤害（通用正则，不写死卡名）
+  if (c.data.type === 'minion') {
+    const mAoe = fullTxt.match(/对(?:对手的战场上的所有随从|所有敌方随从|敌方所有随从|敌方全体随从|战场上所有随从)造成(\d+)点伤害/);
+    if (mAoe && !(fullTxt.includes('攻击时') && fullTxt.indexOf(mAoe[0]) > fullTxt.indexOf('攻击时'))) {
+      dmg += Number(mAoe[1]);
+    }
+  }
+
+  // 4) 攻击时对面前/相邻/全体造成 X 点伤害（通用正则解析，兼容龙族及任意自制卡）
+  const multiAtk = Math.max(1, Number((c.activeKw && c.activeKw['多重攻击']) || 1));
+  const onAtkMatch = fullTxt.match(/攻击时[^。；\n]*?造成(\d+)点伤害/);
+  if (onAtkMatch) {
+    dmg += Number(onAtkMatch[1]) * multiAtk;
+  } else {
+    const legacyOnAtk = c.data.id === 'cmwdts32am05i' ? 1 : (c.data.id === 'cmwdtq4q7c8pe' ? 3 : (c.data.id === 'cmwdui6uam6xe' || c.data.id === 'cmwdukf0l090w' ? 5 : 0));
+    dmg += legacyOnAtk * multiAtk;
+  }
+  return dmg;
+}
+
+function evaluateCombinedKillForAI(pm, effAtk, effectDmg, hasBane, multiAtk = 1) {
+  if (!pm || pm.data.type !== 'minion') return { canKill: false, totalDeal: 0 };
+  const hasBarrier = Boolean(pm.activeKw && pm.activeKw['屏障']);
+  const hits = Math.max(1, Number(multiAtk || 1));
+  let hpLeft = pm.currentHp;
+  let barrierLeft = hasBarrier;
+
+  // 先结算入场曲/攻击前效果伤害（若对手有屏障，效果伤害先破盾）
+  if (effectDmg > 0) {
+    if (barrierLeft) {
+      barrierLeft = false;
+    } else {
+      hpLeft -= effectDmg;
+    }
+  }
+  if (hpLeft <= 0) return { canKill: true, totalDeal: effectDmg };
+
+  // 再结算本体攻击（支持破盾后多重攻击与毁灭）
+  let atkHits = hits;
+  if (barrierLeft && effAtk > 0) {
+    barrierLeft = false;
+    atkHits -= 1;
+  }
+  if (atkHits > 0 && effAtk > 0) {
+    if (hasBane) return { canKill: true, totalDeal: effectDmg + effAtk * atkHits };
+    hpLeft -= effAtk * atkHits;
+  }
+  return { canKill: hpLeft <= 0, totalDeal: effectDmg + Math.max(0, atkHits) * effAtk };
+}
+
 async function runEnemyAITurnAnimated() {
   const _sid = _battleSessionSeq;
   if (battle.gameOver) return;
@@ -11087,8 +11176,18 @@ async function runEnemyAITurnAnimated() {
           choiceIdx = graveMechs4 >= 2 ? 1 : 0;
         } else if (c.data.id === 'cmwc3gozg0rat') {
           const remHandMechs = st.hand.filter(h => h !== c && isMechCard(h.data)).length;
+          const selfAtkEst = (c.currentAtk !== undefined ? c.currentAtk : (c.data.atk || 5));
           const killableEnemies = battle.board[0].filter(pm => pm && pm.data.type === 'minion' && !pm.activeKw['屏障'] && pm.currentHp <= remHandMechs && analyzeMinionKillValueForAI(pm) > 20).length;
-          if (killableEnemies >= 1 && (myMechCount <= 1 || playerBoardTotalAtk >= 4)) choiceIdx = 1;
+          const comboKillHighThreat = [0, 1, 2, 3, 4].some(il => {
+            const pm = battle.board[0][il];
+            if (!pm || pm.data.type !== 'minion') return false;
+            const canPlaceFront = !battle.board[1][il] || (c.data.sacrifice > 0);
+            if (!canPlaceFront) return false;
+            const soloKill = !pm.activeKw['屏障'] && selfAtkEst >= pm.currentHp;
+            const comboRes = evaluateCombinedKillForAI(pm, selfAtkEst, remHandMechs, Boolean(c.activeKw && c.activeKw['毁灭']), 1);
+            return !soloKill && comboRes.canKill && (hasSpecialThreatEffectForAI(pm) || analyzeMinionKillValueForAI(pm) >= 55);
+          });
+          if (comboKillHighThreat || (killableEnemies >= 1 && (myMechCount <= 1 || playerBoardTotalAtk >= 4))) choiceIdx = 1;
           else choiceIdx = 0;
         } else if (c.data.id === 'cmwdwpfyd4xpp') {
           const cdDragons = battle.board[1].filter(m => m && hasRace(m.data, '龙族') && m.countdown !== null && m.countdown > 0).length;
@@ -11185,12 +11284,16 @@ async function runEnemyAITurnAnimated() {
             const mComboDmg = String(ast.combo.text || '').match(/(\d+)点伤害/);
             if (mComboDmg) dmgVal = Number(mComboDmg[1]);
           }
+          const selfMinionAtk = c.data.type === 'minion' ? (c.currentAtk !== undefined ? c.currentAtk : (c.data.atk || 0)) : 0;
           vt.sort((a, b) => {
             const ma = battle.board[0][a.lane], mb = battle.board[0][b.lane];
             const killA = isBanish || isDestroy || (!ma.activeKw['屏障'] && ma.currentHp <= dmgVal);
             const killB = isBanish || isDestroy || (!mb.activeKw['屏障'] && mb.currentHp <= dmgVal);
-            if (killA !== killB) return killB ? 1 : -1;
-            // 优先打价值更高、且伤害利用率更高的目标（如打3优先打3/3而非1/1）
+            const comboKillA = !killA && c.data.type === 'minion' && !battle.board[1][a.lane] && evaluateCombinedKillForAI(ma, selfMinionAtk, dmgVal, Boolean(c.activeKw && c.activeKw['毁灭']), 1).canKill;
+            const comboKillB = !killB && c.data.type === 'minion' && !battle.board[1][b.lane] && evaluateCombinedKillForAI(mb, selfMinionAtk, dmgVal, Boolean(c.activeKw && c.activeKw['毁灭']), 1).canKill;
+            const anyKillA = killA || comboKillA;
+            const anyKillB = killB || comboKillB;
+            if (anyKillA !== anyKillB) return anyKillB ? 1 : -1;
             const effA = (!isBanish && !isDestroy) ? Math.min(dmgVal, ma.currentHp) * 18 : 0;
             const effB = (!isBanish && !isDestroy) ? Math.min(dmgVal, mb.currentHp) * 18 : 0;
             return (analyzeMinionKillValueForAI(mb, isBanish) + effB) - (analyzeMinionKillValueForAI(ma, isBanish) + effA);
@@ -11715,9 +11818,11 @@ async function runEnemyAITurnAnimated() {
         } else {
           const pmKillVal = analyzeMinionKillValueForAI(pm, false);
           const thornDmg = Number((pm.activeKw && pm.activeKw['荆棘']) || 0);
-          const onAtkFrontDmg = c.data.id === 'cmwdts32am05i' ? 1 : (c.data.id === 'cmwdtq4q7c8pe' ? 3 : (c.data.id === 'cmwdui6uam6xe' || c.data.id === 'cmwdukf0l090w' ? 5 : 0));
-          const totalDealToPm = effAtk + onAtkFrontDmg;
-          const canKillPm = (!pm.activeKw['屏障']) && ((totalDealToPm >= pm.currentHp) || (hasBane && effAtk > 0));
+          const effectDmgToPm = estimateCardEffectDmgToLaneForAI(c, st, battle.board[0], l, choiceIdx, isEnh, effTarget, effTargetSide, 0);
+          const multiAtkCnt = Math.max(1, Number((c.activeKw && c.activeKw['多重攻击']) || 1));
+          const killEval = evaluateCombinedKillForAI(pm, effAtk, effectDmgToPm, hasBane, multiAtkCnt);
+          const totalDealToPm = killEval.totalDeal;
+          const canKillPm = killEval.canKill;
           const survivesThorns = effHp > thornDmg;
           const isIgnorableVanilla = !hasSpecialThreatEffectForAI(pm) && !pm.activeKw['守护'] && effAtk > (pm.currentAtk * 2);
           const isResourceLwFodder = hasAnyLastWords(pm) && !hasSpecialThreatEffectForAI(pm) && !isMechCard(pm.data) && pm.currentAtk <= 2;
@@ -12639,19 +12744,19 @@ function syncDetailSelectionHighlight() {
     ret.innerHTML = `
       <svg class="cf-reticle-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
         <g class="cf-reticle-outer-spin">
-          <circle cx="60" cy="60" r="50" fill="none" stroke="#fde047" stroke-width="1.6" stroke-dasharray="10 6 3 6" opacity="0.88"/>
-          <circle cx="60" cy="60" r="44" fill="none" stroke="#fef08a" stroke-width="0.9" opacity="0.55"/>
-          <polygon points="60,6 64,16 60,21 56,16" fill="#fde047" opacity="0.9"/>
-          <polygon points="60,114 64,104 60,99 56,104" fill="#fde047" opacity="0.9"/>
-          <polygon points="6,60 16,56 21,60 16,64" fill="#fde047" opacity="0.9"/>
-          <polygon points="114,60 104,56 99,60 104,64" fill="#fde047" opacity="0.9"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#fde047" stroke-width="2.8" stroke-dasharray="12 6 4 6" opacity="1"/>
+          <circle cx="60" cy="60" r="44" fill="none" stroke="#fef08a" stroke-width="1.5" opacity="0.85"/>
+          <polygon points="60,4 65,16 60,22 55,16" fill="#fde047" opacity="1"/>
+          <polygon points="60,116 65,104 60,98 55,104" fill="#fde047" opacity="1"/>
+          <polygon points="4,60 16,55 22,60 16,65" fill="#fde047" opacity="1"/>
+          <polygon points="116,60 104,55 98,60 104,65" fill="#fde047" opacity="1"/>
         </g>
         <g class="cf-reticle-inner-spin">
-          <circle cx="60" cy="60" r="32" fill="none" stroke="#7dd3fc" stroke-width="1.4" stroke-dasharray="6 5" opacity="0.85"/>
-          <polygon points="60,24 67,53 96,60 67,67 60,96 53,67 24,60 53,53" fill="none" stroke="#bae6fd" stroke-width="1.2" stroke-linejoin="round" opacity="0.82"/>
-          <polygon points="60,34 86,60 60,86 34,60" fill="none" stroke="#fde68a" stroke-width="1.1" opacity="0.72"/>
+          <circle cx="60" cy="60" r="32" fill="none" stroke="#38bdf8" stroke-width="2.4" stroke-dasharray="7 5" opacity="0.98"/>
+          <polygon points="60,22 68,52 98,60 68,68 60,98 52,68 22,60 52,52" fill="none" stroke="#e0f2fe" stroke-width="2.0" stroke-linejoin="round" opacity="0.96"/>
+          <polygon points="60,33 87,60 60,87 33,60" fill="none" stroke="#fde047" stroke-width="1.8" opacity="0.92"/>
         </g>
-        <circle class="cf-reticle-core-glow" cx="60" cy="60" r="7" fill="#fef9c3" opacity="0.78"/>
+        <circle class="cf-reticle-core-glow" cx="60" cy="60" r="8" fill="#fef9c3" opacity="0.95"/>
       </svg>`;
     targetEl.appendChild(ret);
   }
@@ -18977,117 +19082,264 @@ if (document.readyState === 'loading') {
 window.onload = bootGameNow;
 
 
-const GAME_VERSION = '1.77';
+const GAME_VERSION = '1.83';
 window.GAME_VERSION = GAME_VERSION;
 
 
 
 // ============================================================================
-// v1.30 商业化增强：AI 对 AI 自动观战模式（btnMenuSpectate 完整实现）
+// v1.78 AI 观战模式：使用玩家当前构筑卡组对战所选 AI，支持实时一键接管与干净退出
 // ============================================================================
 ;(function initSpectateMode() {
   window.CF_SPECTATE_ACTIVE = false;
   let spectateLoopRunning = false;
 
+  function setSpectateActive(on) {
+    window.CF_SPECTATE_ACTIVE = Boolean(on);
+    const badge = document.getElementById('cfSpectateBadge');
+    if (badge) badge.classList.toggle('hidden', !window.CF_SPECTATE_ACTIVE);
+  }
+  window.setCfSpectateActive = setSpectateActive;
+
   async function runPlayerSideSpectateAI() {
-    if (!window.CF_SPECTATE_ACTIVE || battle.gameOver || battle.turnSide !== 0 || battle.animating) return;
-    if (spectateLoopRunning) return;
-    spectateLoopRunning = true;
-    try {
-      const mOverlay = document.getElementById('mulliganModal');
-      if (mOverlay && !mOverlay.classList.contains('hidden')) {
+    if (!window.CF_SPECTATE_ACTIVE || typeof battle === 'undefined' || !battle || battle.gameOver) return;
+    if (battle.animating || spectateLoopRunning) return;
+    const _sid = _battleSessionSeq;
+
+    // 1. 开局换牌阶段：自动换掉高费卡（费用>4或祭品>=2）并确认起手
+    const mOverlay = document.getElementById('mulliganModal');
+    if (mOverlay && !mOverlay.classList.contains('hidden')) {
+      spectateLoopRunning = true;
+      try {
+        await sleep(420);
+        if (!window.CF_SPECTATE_ACTIVE || _sid !== _battleSessionSeq || battle.gameOver) return;
+        const pHand = (battle.leaders[0] && battle.leaders[0].hand) || [];
+        if (Array.isArray(battle.mulliganSwapped)) {
+          for (let i = 0; i < Math.min(4, pHand.length); i++) {
+            const c = pHand[i];
+            const e = (c && c.data && c.data.energy) || 0;
+            const s = (c && c.data && c.data.sacrifice) || 0;
+            battle.mulliganSwapped[i] = (e >= 5 || s >= 2);
+          }
+          if (typeof renderMulliganDualBox === 'function') renderMulliganDualBox();
+          await sleep(260);
+        }
+        if (!window.CF_SPECTATE_ACTIVE || _sid !== _battleSessionSeq || battle.gameOver) return;
         const confirmBtn = document.getElementById('btnConfirmMulligan');
         if (confirmBtn) confirmBtn.click();
-        await sleep(480);
+        await sleep(520);
+      } finally {
+        spectateLoopRunning = false;
       }
-      if (!window.CF_SPECTATE_ACTIVE || battle.gameOver || battle.turnSide !== 0) return;
-      battle.animating = true;
-      await sleep(300);
+      return;
+    }
 
+    // 2. 仅在我方回合 (activeSide === 0) 自动操作
+    if (battle.activeSide !== 0) return;
+    spectateLoopRunning = true;
+    try {
+      await sleep(340);
       let guard = 0;
-      while (window.CF_SPECTATE_ACTIVE && !battle.gameOver && battle.turnSide === 0 && guard < 12) {
+      while (window.CF_SPECTATE_ACTIVE && _sid === _battleSessionSeq && !battle.gameOver && battle.activeSide === 0 && guard < 18) {
         guard++;
+        if (battle.animating) {
+          await sleep(180);
+          continue;
+        }
         const st = battle.leaders[0];
-        const emptyLanes = [0, 1, 2, 3, 4].filter(l => !battle.board[0][l]);
-        let bestIdx = -1;
-        let bestVal = -1;
+        if (!st || !Array.isArray(st.hand)) break;
+
+        let bestAction = null;
+        let bestScore = -9999;
+
         for (let i = 0; i < st.hand.length; i++) {
           const c = st.hand[i];
           if (!c || !c.data) continue;
-          const eCost = typeof getEffectiveEnergyCost === 'function' ? getEffectiveEnergyCost(0, c) : (c.data.energy || 0);
-          const bCost = c.data.bones || 0;
-          const sCost = c.data.sacrifice || 0;
-          if (eCost > st.energy || bCost > st.bones) continue;
-          if (sCost > 0) continue;
-          if ((c.data.type === 'minion' || c.data.type === 'amulet') && emptyLanes.length === 0) continue;
-          if (c.data.type === 'spell') continue;
-          const val = (c.data.value || eCost || 1) * 10 + (c.data.atk || 0) + (c.data.hp || 0);
-          if (val > bestVal) { bestVal = val; bestIdx = i; }
+          const playEval = typeof evaluateCardPlayState === 'function' ? evaluateCardPlayState(0, c) : null;
+          if (!playEval || !playEval.ok) continue;
+
+          const isEnh = playEval.mode === 'enhance';
+          const isSpell = c.data.type === 'spell';
+          const needSac = c.data.sacrifice || 0;
+
+          // 选择献祭祭品（优先低价值随从，避免亏本献祭大哥）
+          let sacLanes = [];
+          if (needSac > 0) {
+            const validSac = getValidSacrificeLanes(0, c.data.sacrificeCond || '');
+            if (validSac.length < needSac) continue;
+            validSac.sort((la, lb) => compareTributeCandidatesForAI(battle.board[0][la], battle.board[0][lb]));
+            sacLanes = validSac.slice(0, needSac);
+            let tributeVal = 0;
+            sacLanes.forEach(sl => {
+              const sm = battle.board[0][sl];
+              if (sm) tributeVal += (typeof getBoardMinionEffectiveValueForAI === 'function' ? getBoardMinionEffectiveValueForAI(sm) : (getCardCostValue(sm.data) || 1));
+            });
+            const selfVal = (typeof getCardCostValue === 'function' ? getCardCostValue(c.data) : (c.data.energy || 1)) + 1.2;
+            if (tributeVal > selfVal + 0.6) continue;
+          }
+
+          // 选择放置列（随从/护符）
+          let placeLane = -1;
+          if (!isSpell) {
+            const availLanes = [0, 1, 2, 3, 4].filter(l => !battle.board[0][l] || sacLanes.includes(l));
+            if (availLanes.length === 0) continue;
+            let bestLaneScore = -9999;
+            for (const l of availLanes) {
+              const em = battle.board[1][l];
+              let ls = 0;
+              if (c.data.type === 'amulet') {
+                ls = em ? -20 : 15;
+              } else if (em && em.data.type === 'minion') {
+                const threat = (typeof analyzeMinionKillValueForAI === 'function' ? analyzeMinionKillValueForAI(em, false) : ((em.currentAtk || 0) * 18)) + (em.activeKw && em.activeKw['飞行'] ? 25 : 0);
+                const effDmg = typeof estimateCardEffectDmgToLaneForAI === 'function'
+                  ? estimateCardEffectDmgToLaneForAI(c, st, battle.board[1], l, 0, isEnh, -1, 1, 1)
+                  : 0;
+                const comb = typeof evaluateCombinedKillForAI === 'function'
+                  ? evaluateCombinedKillForAI(em, (c.currentAtk || c.data.atk || 0), effDmg, Boolean(c.activeKw && c.activeKw['毁灭']), Math.max(1, Number((c.activeKw && c.activeKw['多重攻击']) || 1)))
+                  : { canKill: (c.currentAtk || c.data.atk || 0) >= (em.currentHp || 1) };
+                ls = threat + (comb.canKill ? 140 : 15);
+              } else {
+                ls = (c.currentAtk || c.data.atk || 0) * 14 + 10;
+              }
+              if (ls > bestLaneScore) { bestLaneScore = ls; placeLane = l; }
+            }
+          }
+
+          // 抉择选项
+          const choices = typeof getCardChoices === 'function' ? getCardChoices(c) : [];
+          const choiceIdx = choices.length > 0 ? 0 : -1;
+
+          // 目标指定
+          const req = typeof getCardTargetRequirement === 'function'
+            ? getCardTargetRequirement(c, isEnh, choiceIdx, playEval.mode || 'normal')
+            : '';
+          let effTarget = -1;
+          let effTargetSide = 1;
+          let handTargetUid = -1;
+
+          if (req === 'hand_card') {
+            const others = st.hand.filter(h => h && h.uid !== c.uid);
+            if (others.length === 0) {
+              if (isSpell) continue;
+            } else {
+              others.sort((a, b) => (a.data.energy || 0) - (b.data.energy || 0));
+              handTargetUid = others[0].uid;
+            }
+          } else if (req) {
+            const locs = typeof getValidTargetLocations === 'function'
+              ? getValidTargetLocations(0, req, isSpell, sacLanes)
+              : [];
+            if (locs.length === 0) {
+              if (isSpell) continue;
+            } else {
+              locs.sort((a, b) => {
+                const ma = battle.board[a.side][a.lane];
+                const mb = battle.board[b.side][b.lane];
+                const va = ma ? ((ma.currentAtk || 0) * 20 + (ma.currentHp || 0) * 8) : 0;
+                const vb = mb ? ((mb.currentAtk || 0) * 20 + (mb.currentHp || 0) * 8) : 0;
+                return vb - va;
+              });
+              effTarget = locs[0].lane;
+              effTargetSide = locs[0].side;
+            }
+          }
+
+          const cardVal = (typeof getCardCostValue === 'function' ? getCardCostValue(c.data) : (c.data.energy || 1)) * 18
+            + (isEnh ? 28 : 0)
+            + (isSpell ? 16 : ((c.currentAtk || c.data.atk || 0) * 4 + (c.currentHp || c.data.hp || 0) * 2))
+            - needSac * 6;
+          if (cardVal > bestScore) {
+            bestScore = cardVal;
+            bestAction = { card: c, playEval, placeLane, sacLanes, effTarget, choiceIdx, handTargetUid, effTargetSide };
+          }
         }
-        if (bestIdx === -1) break;
-        const card = st.hand[bestIdx];
-        const eCost = typeof getEffectiveEnergyCost === 'function' ? getEffectiveEnergyCost(0, card) : (card.data.energy || 0);
-        let targetLane = emptyLanes[0];
-        let maxThreat = -1;
-        for (const l of emptyLanes) {
-          const em = battle.board[1][l];
-          const threat = em && em.data.type === 'minion' ? (em.currentAtk || 0) + 1 : 0;
-          if (threat > maxThreat) { maxThreat = threat; targetLane = l; }
-        }
-        st.hand.splice(bestIdx, 1);
-        spendLeaderEnergy(0, eCost);
-        st.bones = Math.max(0, st.bones - (card.data.bones || 0));
-        if (typeof placeCardOnBoardAnimated === 'function') {
-          await placeCardOnBoardAnimated(0, targetLane, card);
-        } else {
-          battle.board[0][targetLane] = card;
-          renderAllBattleUI();
-        }
-        await sleep(260);
+
+        if (!bestAction) break;
+        if (!window.CF_SPECTATE_ACTIVE || _sid !== _battleSessionSeq || battle.gameOver || battle.activeSide !== 0) break;
+
+        await commitCardPlayWithAnimations(
+          0,
+          bestAction.card,
+          bestAction.playEval,
+          bestAction.placeLane,
+          bestAction.sacLanes,
+          bestAction.effTarget,
+          bestAction.choiceIdx,
+          bestAction.handTargetUid,
+          bestAction.effTargetSide
+        );
+        await sleep(340);
       }
-      battle.animating = false;
-      renderAllBattleUI();
-      if (window.CF_SPECTATE_ACTIVE && !battle.gameOver && battle.turnSide === 0) {
-        await sleep(320);
-        await executeEndTurnSequence(0);
+
+      if (window.CF_SPECTATE_ACTIVE && _sid === _battleSessionSeq && !battle.gameOver && battle.activeSide === 0) {
+        await sleep(360);
+        if (window.CF_SPECTATE_ACTIVE && _sid === _battleSessionSeq && !battle.gameOver && battle.activeSide === 0) {
+          await executeEndTurnSequence(0);
+        }
       }
     } catch (e) {
       battle.animating = false;
       console.warn('[SpectateAI]', e);
     } finally {
       spectateLoopRunning = false;
+      if (!window.CF_SPECTATE_ACTIVE && !battle.gameOver) {
+        battle.animating = false;
+        if (typeof renderAllBattleUI === 'function') renderAllBattleUI();
+      }
     }
   }
 
   document.getElementById('btnMenuSpectate')?.addEventListener('click', () => {
-    window.CF_SPECTATE_ACTIVE = true;
+    const arch = document.getElementById('menuAiArch')?.value || 'dragon';
+    const diff = document.getElementById('menuAiDiff')?.value || 'normal';
+    aiDeckArchetype = arch;
+    aiDifficulty = diff;
     battleMode = 'pve';
+    const selM = document.getElementById('selectBattleMode'); if (selM) selM.value = 'pve';
+    const selA = document.getElementById('selectAiDeckArchetype'); if (selA) selA.value = arch;
+    const selD = document.getElementById('selectAiDifficulty'); if (selD) selD.value = diff;
+
     const menu = document.getElementById('mainMenuOverlay');
     if (menu) menu.classList.add('hidden');
-    if (typeof initNewBattle === 'function') initNewBattle();
-    const badge = document.getElementById('cfSpectateBadge');
-    if (badge) badge.classList.remove('hidden');
+    if (typeof window.enterBattleFullscreenLandscape === 'function') window.enterBattleFullscreenLandscape();
+    if (typeof switchScreen === 'function') switchScreen('battle');
+
+    setSpectateActive(true);
+    if (typeof initNewBattle === 'function') initNewBattle({ spectate: true });
+
+    const curDeck = (typeof PRESET_DECKS !== 'undefined' && PRESET_DECKS[currentDeckIndex]) ? PRESET_DECKS[currentDeckIndex].name : '当前卡组';
+    const diffCfg = (typeof AI_DIFFICULTY_CONFIG !== 'undefined' && AI_DIFFICULTY_CONFIG[aiDifficulty]) ? AI_DIFFICULTY_CONFIG[aiDifficulty].label : 'AI';
+    if (typeof showToast === 'function') {
+      showToast(`🤖 AI 观战开始：我方 AI 使用「${curDeck}」对战 ${diffCfg}，点击右上角可随时接管`, 'info');
+    }
   });
 
-  ['btnTopBackMenu','btnNavMainMenu','btnExitSpectate'].forEach(id => document.getElementById(id)?.addEventListener('click', () => { window.CF_SPECTATE_ACTIVE = false; }));
-  document.getElementById('btnTopBackMenu')?.addEventListener('click', () => {
-    window.CF_SPECTATE_ACTIVE = false;
-    const badge = document.getElementById('cfSpectateBadge');
-    if (badge) badge.classList.add('hidden');
+  // 任何退出观战或切回其他模式的操作都彻底关闭观战状态与接管按钮
+  [
+    'btnTopBackMenu', 'btnNavMainMenu', 'btnExitSpectate', 'btnVicGoDeck',
+    'btnMenuStartPve', 'btnMenuPassPlay', 'btnMenuStartOnline', 'btnMenuDeckEditor', 'btnMenuDesigner'
+  ].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', () => setSpectateActive(false));
   });
 
   setInterval(() => {
     if (!window.CF_SPECTATE_ACTIVE) return;
-    if (typeof battle === 'undefined' || !battle || battle.gameOver) return;
-    const menu = document.getElementById('mainMenuOverlay');
-    if (menu && !menu.classList.contains('hidden')) {
-      window.CF_SPECTATE_ACTIVE = false;
+    if (typeof battle === 'undefined' || !battle || battle.gameOver) {
+      if (battle && battle.gameOver) setSpectateActive(false);
       return;
     }
-    if (battle.turnSide === 0 && !battle.animating) {
+    const menu = document.getElementById('mainMenuOverlay');
+    const battleScreen = document.getElementById('screenBattle');
+    if ((menu && !menu.classList.contains('hidden')) || (battleScreen && battleScreen.classList.contains('hidden'))) {
+      setSpectateActive(false);
+      return;
+    }
+    const mOverlay = document.getElementById('mulliganModal');
+    const inMulligan = mOverlay && !mOverlay.classList.contains('hidden');
+    if ((inMulligan || battle.activeSide === 0) && !battle.animating && !spectateLoopRunning) {
       runPlayerSideSpectateAI();
     }
-  }, 700);
+  }, 550);
 })();
 
 
@@ -19210,15 +19462,22 @@ window.GAME_VERSION = GAME_VERSION;
 
   function syncHudVisibility() {
     const menu = document.getElementById('mainMenuOverlay');
-    const inMenu = menu && !menu.classList.contains('hidden');
-    if (hudBar) hudBar.style.display = inMenu ? 'none' : 'flex';
+    const battleScreen = document.getElementById('screenBattle');
+    const inMenu = (menu && !menu.classList.contains('hidden')) || (battleScreen && battleScreen.classList.contains('hidden'));
+    const isOver = typeof battle !== 'undefined' && battle && battle.gameOver;
+    if (inMenu || isOver) {
+      if (window.CF_SPECTATE_ACTIVE && typeof window.setCfSpectateActive === 'function') {
+        window.setCfSpectateActive(false);
+      }
+    }
+    if (hudBar) hudBar.style.display = (inMenu || !window.CF_SPECTATE_ACTIVE) ? 'none' : 'flex';
     if (speedBtn) {
       const sp = window.CF_BATTLE_SPEED || 1;
       speedBtn.textContent = `⚡ ${sp}x`;
       speedBtn.classList.toggle('speed-fast', sp > 1);
     }
     if (spectateBtn) {
-      spectateBtn.classList.toggle('hidden', !window.CF_SPECTATE_ACTIVE);
+      spectateBtn.classList.toggle('hidden', !window.CF_SPECTATE_ACTIVE || inMenu || isOver);
     }
   }
   function cycleBattleSpeed() {
@@ -19229,9 +19488,20 @@ window.GAME_VERSION = GAME_VERSION;
     syncHudVisibility();
   }
   speedBtn?.addEventListener('click', cycleBattleSpeed);
-  spectateBtn?.addEventListener('click', () => {
-    window.CF_SPECTATE_ACTIVE = false;
+  spectateBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (typeof window.setCfSpectateActive === 'function') window.setCfSpectateActive(false);
+    else window.CF_SPECTATE_ACTIVE = false;
     syncHudVisibility();
+    if (typeof battle !== 'undefined' && battle && !battle.gameOver) {
+      if (battle.activeSide === 0) {
+        battle.animating = false;
+        if (typeof renderAllBattleUI === 'function') renderAllBattleUI();
+        if (typeof showToast === 'function') showToast('🎮 已接管战场！现在由你手动操作', 'success');
+      } else {
+        if (typeof showToast === 'function') showToast('🎮 已接管战场！敌方回合结束后将由你手动操作', 'info');
+      }
+    }
   });
   setInterval(syncHudVisibility, 450);
 
