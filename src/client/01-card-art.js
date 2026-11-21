@@ -82,23 +82,41 @@ function getCardMaterialType(cardData) {
   return 'holy';
 }
 
-function getCustomSvgCardArtURI(cardData) {
-  if (!cardData || typeof window === 'undefined' || !window.CF_SVG_ART_PACK) return null;
-  const pack = window.CF_SVG_ART_PACK;
+// v1.88 卡图来源（按优先级）：
+//   1) window.CF_SVG_ART_PACK —— 玩家用 Shift+I 本地导入的卡图（IndexedDB，data URI）或旧版单文件卡图包
+//   2) window.CF_ART_MANIFEST —— 构建时生成的按卡拆分的 webp（带内容哈希，浏览器按需加载并长期缓存）
+// size: 'thumb'（手牌 / 战场 / 详情，默认）| 'full'（原画鉴赏）
+function getCustomSvgCardArtURI(cardData, size = 'thumb') {
+  if (!cardData || typeof window === 'undefined') return null;
+  const pack = window.CF_SVG_ART_PACK || null;
+  const man = window.CF_ART_MANIFEST || null;
+  if (!pack && !man) return null;
   const rawName = String(cardData.name || '').trim();
   const strippedName = rawName
     .replace(/^(?:结晶[：:]|【结晶】)/, '')
     .replace(/(?:·结晶|（结晶）|\(结晶\))$/, '')
     .trim();
-  return (
-    pack[rawName] ||
-    (cardData.artCardName && pack[cardData.artCardName]) ||
-    (cardData.sourceCardName && pack[cardData.sourceCardName]) ||
-    (strippedName && pack[strippedName]) ||
-    pack[cardData.id] ||
-    (cardData.sourceCardId && pack[cardData.sourceCardId]) ||
-    null
-  );
+  const keys = [rawName, cardData.artCardName, cardData.sourceCardName, strippedName, cardData.id, cardData.sourceCardId];
+  if (pack) for (const k of keys) if (k && pack[k]) return pack[k];
+  if (man) {
+    for (const k of keys) {
+      const e = k && Object.prototype.hasOwnProperty.call(man, k) ? man[k] : null;
+      if (e) return (size === 'full' ? e.full : e.thumb) || e.full || e.thumb || null;
+    }
+  }
+  return null;
+}
+
+/** 缩略图 URL → 原图 URL（原画鉴赏用）；不是清单里的图则原样返回 */
+function cfArtFullUrl(uri) {
+  const man = (typeof window !== 'undefined' && window.CF_ART_MANIFEST) || null;
+  if (!man || !uri) return uri;
+  if (!window.__cfArtThumbToFull) {
+    window.__cfArtThumbToFull = new Map();
+    for (const k of Object.keys(man)) if (man[k] && man[k].thumb) window.__cfArtThumbToFull.set(man[k].thumb, man[k].full);
+  }
+  const rel = String(uri).replace(/^https?:\/\/[^/]+\//, '').replace(/^\//, '');
+  return window.__cfArtThumbToFull.get(rel) || uri;
 }
 
 function getAnimeIllustrationLayers(cardData) {

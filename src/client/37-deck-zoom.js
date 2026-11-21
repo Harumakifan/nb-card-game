@@ -11,6 +11,7 @@
     const imgSrc = (svgImg && (svgImg.getAttribute('href') || svgImg.getAttribute('xlink:href')))
       || (domImg && domImg.getAttribute('src'))
       || (typeof deckInspectedCardData !== 'undefined' && deckInspectedCardData ? getAnimeIllustrationDataURI(deckInspectedCardData) : '');
+    const imgFull = cfArtFullUrl(imgSrc);
     const cardTitle = (typeof deckInspectedCardData !== 'undefined' && deckInspectedCardData && deckInspectedCardData.name)
       || (domImg && domImg.getAttribute('alt'))
       || '卡面原画鉴赏';
@@ -22,8 +23,8 @@
     lb.innerHTML = `
       <div class="cf-zoom-backdrop"></div>
       <div class="cf-zoom-stage">
-        <img class="cf-zoom-pure-art" src="${imgSrc}" alt="${cardTitle}" />
-        <div class="cf-zoom-hint">${cardTitle} · 点击任意位置或按 Esc 关闭原画鉴赏</div>
+        <img class="cf-zoom-pure-art" src="${escapeHtml(imgFull)}" alt="${escapeHtml(cardTitle)}" />
+        <div class="cf-zoom-hint">${escapeHtml(cardTitle)} · 点击任意位置或按 Esc 关闭原画鉴赏</div>
       </div>
     `;
     const close = () => lb.remove();

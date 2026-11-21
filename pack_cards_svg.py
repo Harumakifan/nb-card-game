@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-CardForge · 冥刻之诗 cards_svg 超清全貌一键打包脚本 (v1.37)
+CardForge · 冥刻之诗 cards_svg 超清全貌一键打包脚本 (v1.88)
 用法：
-  python3 pack_cards_svg.py ./cards_svg
+  python3 pack_cards_svg.py ./cards_svg [--fix-svg-gems]
 作用：
   1) 完整保留每张 SVG 内嵌原画的真实比例（零裁切、不放大截断），按最长边 1080px（如 720x1080）以 WebP 94% 超清质量压缩，
-     生成同级目录的 `cards_art_pack.js`，替换游戏目录同名文件即可让全部 216 张卡在手牌与战场上呈现超清全貌！
+     输出到 web/art/full/<内容哈希>.webp，并更新 web/art/manifest.json（卡名 → 文件）。
+     v1.88 起不再生成 84MB 的 cards_art_pack.js：浏览器按需加载单张卡图，缩略图由 `npm run build` 自动生成。
   2) 可选参数 `--fix-svg-gems`：同步将原始 SVG 卡图底部的稀有度宝石按「普通=铜、稀有=银、史诗=金、传说=彩虹」批量更新。
 """
-import os, sys, re, io, json, base64
+import os, sys, re, io, json, base64, hashlib
 from pathlib import Path
 
 try:
@@ -30,7 +31,7 @@ def extract_name(filename: str) -> str:
     m = re.match(r'^\d+[_\-\s]+(.+)$', stem)
     return m.group(1).strip() if m else stem
 
-def process_image_uhd_full(img_bytes: bytes, max_side=1080, quality=94) -> str:
+def process_image_uhd_full(img_bytes: bytes, max_side=1080, quality=94) -> bytes:
     im = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     w, h = im.size
     scale = min(1.0, max_side / max(w, h))
@@ -38,7 +39,7 @@ def process_image_uhd_full(img_bytes: bytes, max_side=1080, quality=94) -> str:
     im = im.resize((nw, nh), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     im.save(buf, format="WEBP", quality=quality, method=6)
-    return "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    return buf.getvalue()
 
 def main():
     if len(sys.argv) < 2:
@@ -75,12 +76,20 @@ def main():
             pack[name] = process_image_uhd_full(fp.read_bytes())
             print(f"  [OK] {name} <- {fp.name}")
 
-    out_js = Path("cards_art_pack.js")
-    out_js.write_text(
-        f"// CardForge · 冥刻之诗 高清卡图资源包 (共 {len(pack)} 张)\nwindow.CF_SVG_ART_PACK = Object.assign(window.CF_SVG_ART_PACK || {{}}, {json.dumps(pack, ensure_ascii=False)});\n",
-        encoding="utf-8"
-    )
-    print(f"\n完成！共打包 {len(pack)} 张超清全貌卡图，已输出单文件 {out_js.name} ({out_js.stat().st_size/1024/1024:.2f} MB)。")
+    art_dir = Path(__file__).resolve().parent / "web" / "art"
+    full_dir = art_dir / "full"
+    full_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = art_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"version": 1, "cards": {}}
+    total = 0
+    for name, data in pack.items():
+        digest = hashlib.sha256(data).hexdigest()[:16]
+        (full_dir / f"{digest}.webp").write_bytes(data)
+        manifest["cards"][name] = {"full": f"art/full/{digest}.webp"}
+        total += len(data)
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    print(f"\n完成！共处理 {len(pack)} 张超清全貌卡图（{total/1024/1024:.2f} MB），已写入 {full_dir} 并更新 {manifest_path.name}。")
+    print("运行 `npm run build` 即可生成缩略图与带哈希的发布文件。")
 
 if __name__ == "__main__":
     main()
