@@ -2420,6 +2420,19 @@ ${cardData ? cardData.name : ''}`;
 }
 
 async function playSynergyBeam(fromEl, toEl, color = '#38bdf8', duration = 340) {
+  if (typeof recordLocalVfx === 'function' && fromEl && toEl) {
+    const _resolveNode = (el) => {
+      if (!el) return null;
+      if (el.id === 'playerLeaderNode') return { side: 0, lane: -1 };
+      if (el.id === 'enemyLeaderNode' || el.id === 'enemyAvatarCanvasWrap') return { side: 1, lane: -1 };
+      const laneEl = el.closest ? el.closest('[data-side][data-lane]') : null;
+      if (laneEl) return { side: parseInt(laneEl.dataset.side, 10), lane: parseInt(laneEl.dataset.lane, 10) };
+      return null;
+    };
+    const _f = _resolveNode(fromEl);
+    const _t = _resolveNode(toEl);
+    if (_f && _t) recordLocalVfx({ kind: 'beam', fromSide: _f.side, fromLane: _f.lane, toSide: _t.side, toLane: _t.lane, color });
+  }
   if (!fromEl || !toEl) return;
   const r1 = fromEl.getBoundingClientRect();
   const r2 = toEl.getBoundingClientRect();
@@ -18049,7 +18062,9 @@ function checkAndPromptSavedPveBattle() {
 // 联机：对手离开检测与 15 秒重连倒计时
 OnlineState.lastOppActiveTs = Date.now();
 OnlineState.oppAwayTimer = null;
-OnlineState.oppAwayRemain = 15;
+OnlineState.oppAwayRemain = 45;
+OnlineState._localAwayDelayTimer = null;
+OnlineState._localAwaySent = false;
 
 function resetOppDisconnectMonitor() {
   OnlineState.lastOppActiveTs = Date.now();
@@ -18059,7 +18074,7 @@ function resetOppDisconnectMonitor() {
 
 function startOppDisconnectCountdown(whoName) {
   if (OnlineState.oppAwayTimer || !OnlineState.inMatch || battle.gameOver) return;
-  OnlineState.oppAwayRemain = 15;
+  OnlineState.oppAwayRemain = 45;
   const banner = document.getElementById('oppDisconnectBanner');
   const txt = document.getElementById('oppDisconnectText');
   if (banner) banner.classList.remove('hidden');
@@ -18074,7 +18089,7 @@ function startOppDisconnectCountdown(whoName) {
     if (txt) txt.textContent = `⚠️ 对手【${whoName || '对方'}】暂时离开，等待重连 (${Math.max(0, OnlineState.oppAwayRemain)}s)...`;
     if (OnlineState.oppAwayRemain <= 0) {
       resetOppDisconnectMonitor();
-      showOnlineVictoryDefeatModal(true, `对手离开超过 15 秒未重连，系统判定对方放弃战斗，你获得胜利！`);
+      showOnlineVictoryDefeatModal(true, `对手离开超过 45 秒未重连，系统判定对方放弃战斗，你获得胜利！`);
     }
   }, 1000);
 }
@@ -18083,7 +18098,15 @@ function startOppDisconnectCountdown(whoName) {
 document.addEventListener('visibilitychange', () => {
   if (battleMode === 'pvp_online' && OnlineState.inMatch && !battle.gameOver && OnlineState.roomId) {
     if (document.hidden) {
-      sendRoomPacket({ type: 'PLAYER_AWAY', who: OnlineState.nickname });
+      if (OnlineState._localAwayDelayTimer) clearTimeout(OnlineState._localAwayDelayTimer);
+      OnlineState._localAwaySent = false;
+      // 切屏 8 秒宽限期：短暂切出回消息不误报“对方离开”
+      OnlineState._localAwayDelayTimer = setTimeout(() => {
+        if (document.hidden && battleMode === 'pvp_online' && OnlineState.inMatch && !battle.gameOver && OnlineState.roomId) {
+          OnlineState._localAwaySent = true;
+          sendRoomPacket({ type: 'PLAYER_AWAY', who: OnlineState.nickname });
+        }
+      }, 8000);
       try {
         localStorage.setItem(PVP_SESSION_KEY, JSON.stringify({
           ts: Date.now(),
@@ -18326,12 +18349,28 @@ async function replayOpponentActionsOnClient(actionMeta) {
   if (!_hasRichAttackVfx && Array.isArray(actionMeta.combatEvents)) {
     for (const ev of actionMeta.combatEvents) {
       const fromEl = getLaneDOM(1, ev.fromLane);
-      const toEl = getLaneDOM(0, ev.toLane);
-      if (fromEl && toEl) {
-        if (fromEl.firstElementChild) fromEl.firstElementChild.style.transform = 'translateY(28px) scale(1.1)';
-        await playSynergyBeam(fromEl, toEl, '#f43f5e', 200);
-        if (ev.dmg > 0) spawnFloatNumber(0, ev.toLane, `-${ev.dmg}`, '#fb7185');
-        if (fromEl.firstElementChild) fromEl.firstElementChild.style.transform = '';
+      const atkToken = fromEl ? (fromEl.querySelector('.sv-follower-token') || fromEl.firstElementChild) : null;
+      const hitLeader = !battle.board[0][ev.toLane];
+      const toEl = hitLeader ? document.getElementById('playerLeaderNode') : getLaneDOM(0, ev.toLane);
+      if (atkToken && toEl) {
+        sfx.play('attack');
+        const ar = atkToken.getBoundingClientRect();
+        const tr = toEl.getBoundingClientRect();
+        const dx = (tr.left + tr.width / 2) - (ar.left + ar.width / 2);
+        const dy = (tr.top + tr.height / 2) - (ar.top + ar.height / 2);
+        atkToken.style.zIndex = '60';
+        atkToken.animate([
+          { transform: 'translate3d(0, 0, 0) scale(1)', offset: 0 },
+          { transform: `translate3d(${(-dx * 0.08).toFixed(1)}px, ${(-dy * 0.08).toFixed(1)}px, 0) scale(1.06)`, offset: 0.28 },
+          { transform: `translate3d(${(dx * 0.48).toFixed(1)}px, ${(dy * 0.48).toFixed(1)}px, 0) scale(1.14)`, offset: 0.65 },
+          { transform: 'translate3d(0, 0, 0) scale(1)', offset: 1 }
+        ], { duration: 340, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+        await sleep(175);
+        atkToken.style.zIndex = '';
+        sfx.play('hit');
+        if (!hitLeader && typeof playMeleeImpactVFX === 'function') await playMeleeImpactVFX(toEl, '#fbbf24');
+        if (ev.dmg > 0) spawnFloatNumber(0, hitLeader ? -1 : ev.toLane, `-${ev.dmg}`, '#fb7185');
+        await sleep(110);
       }
     }
   }
@@ -18866,7 +18905,7 @@ async function replayRecordedVfxList(vfxList) {
       if (ev.kind === 'attack_strike') {
         const mToSide = 1 - mSide;
         const atkCell = getLaneDOM(mSide, ev.fromLane);
-        const atkToken = atkCell ? atkCell.firstElementChild : null;
+        const atkToken = atkCell ? (atkCell.querySelector('.sv-follower-token') || atkCell.firstElementChild) : null;
         const targetEl = ev.hitLeader
           ? document.getElementById(mToSide === 0 ? 'playerLeaderNode' : 'enemyLeaderNode')
           : getLaneDOM(mToSide, ev.toLane);
@@ -18920,6 +18959,12 @@ async function replayRecordedVfxList(vfxList) {
           await doLunge();
         }
         await sleep(110);
+      } else if (ev.kind === 'beam') {
+        const mfSide = ev.fromSide === 0 ? 1 : 0;
+        const mtSide = ev.toSide === 0 ? 1 : 0;
+        const fEl = ev.fromLane >= 0 ? getLaneDOM(mfSide, ev.fromLane) : document.getElementById(mfSide === 0 ? 'playerLeaderNode' : 'enemyLeaderNode');
+        const tEl = ev.toLane >= 0 ? getLaneDOM(mtSide, ev.toLane) : document.getElementById(mtSide === 0 ? 'playerLeaderNode' : 'enemyLeaderNode');
+        if (fEl && tEl) await playSynergyBeam(fEl, tEl, ev.color || '#38bdf8', 300);
       } else if (ev.kind === 'dmg_leader') {
         sfx.play('hit');
         if (ev.dmg > 0) spawnFloatNumber(mSide, -1, `-${ev.dmg}`, '#fb7185');
@@ -19178,7 +19223,7 @@ if (document.readyState === 'loading') {
 window.onload = bootGameNow;
 
 
-const GAME_VERSION = '1.86';
+const GAME_VERSION = '1.87';
 window.GAME_VERSION = GAME_VERSION;
 
 
@@ -20183,7 +20228,12 @@ document.getElementById('btnDesignerBackToMenu')?.addEventListener('click', () =
   async function parseAndApplyArtPackBlob(blob) {
     // 直接提取 JSON 对象并 JSON.parse，彻底避免 blob: 脚本执行，100% 兼容最严格 CSP (script-src 'self')
     const rawTxt = await blob.text();
-    const sIdx = rawTxt.indexOf('{');
+    // 注意 cards_art_pack.js 头部为 Object.assign(window.CF_SVG_ART_PACK || {}, {"卡名":...})，必须跳过前面的 "{}"
+    let sIdx = rawTxt.indexOf('{"');
+    if (sIdx === -1) {
+      const assignComma = rawTxt.indexOf('{},');
+      sIdx = assignComma !== -1 ? rawTxt.indexOf('{', assignComma + 3) : rawTxt.indexOf('{');
+    }
     const eIdx = rawTxt.lastIndexOf('}');
     if (sIdx === -1 || eIdx <= sIdx) {
       throw new Error('卡图包格式异常');
