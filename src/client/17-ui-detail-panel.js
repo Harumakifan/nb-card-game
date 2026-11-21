@@ -445,142 +445,33 @@ function openCardDetailPanel(inst, location, side, lane, anchorEl = null, keepSt
   const canControlThisSide = (side === 0 && battle.activeSide === 0) || (battleMode === 'pvp_pass' && side === battle.activeSide);
 
   if (canControlThisSide && !battle.gameOver && !battle.animating) {
-    if (location === 'board' && (ast.activate || c.id === 'cmwdw5qt6cbqb' || c.id === 'cmwdzvs1woa53' || c.id === 'cmwfdhecfc856')) {
+    const actInfo = location === 'board' ? cfGetActivateInfo(side, lane) : null;
+    if (actInfo && actInfo.available) {
       actBox.classList.remove('hidden');
-      const eCost = c.id === 'cmwdzvs1woa53' ? 0 : (ast.activate ? (ast.activate.energy || 0) : 1);
-      const actKwObj = (c.keywords || []).find(k => k.k === "启动");
-      const bCost = Number((actKwObj && actKwObj.cost && actKwObj.cost.bones) || 0);
-      const sCost = Number((actKwObj && actKwObj.cost && actKwObj.cost.sacrifice) || 0);
-      let extraCondOk = true;
-      let extraCondReason = '';
-      if (c.id === 'cmwdw5qt6cbqb') {
-        const hasCrest = (pst.crests || []).some(cr => cr.id === 'crest_wyvern_rider');
-        if (!hasCrest) { extraCondOk = false; extraCondReason = ' (无飞龙骑手纹章)'; }
-      } else if (c.id === 'cmwgysie8srmh') {
-        const hasCrest = (pst.crests || []).some(cr => cr.id === 'crest_arrogant_rose');
-        if (!hasCrest) { extraCondOk = false; extraCondReason = ' (无傲慢的大小姐纹章)'; }
-      } else if (c.id === 'cmwdzvs1woa53') {
-        if (pst.hand.length === 0) { extraCondOk = false; extraCondReason = ' (无手牌可弃置)'; }
-      } else if (c.id === 'cmwlomedyjchl') {
-        const oppL = [0,1,2,3,4].filter(el => battle.board[1 - side][el] && battle.board[1 - side][el].data.type === 'minion' && !battle.board[1 - side][el].activeKw['潜行']);
-        if (oppL.length === 0) { extraCondOk = false; extraCondReason = ' (无敌方随从目标)'; }
-      } else if (sCost > 0) {
-        const sacAvail = [0,1,2,3,4].filter(sl => battle.board[side][sl] && battle.board[side][sl].data.type === 'minion' && battle.board[side][sl] !== inst).length;
-        if (sacAvail < sCost) { extraCondOk = false; extraCondReason = ' (场上祭品不足)'; }
-      }
-      const canAct = !inst.activatedThisTurn && getTotalAvailableEnergy(pst) >= eCost && pst.bones >= bCost && extraCondOk && (battleMode !== 'pvp_online' || onlineIsMyTurn());
+      const { eCost, bCost, sCost, extraCondReason } = actInfo;
+      const canAct = actInfo.ok && (battleMode !== 'pvp_online' || onlineIsMyTurn());
       actBtn.disabled = !canAct;
       const costLbl = [eCost > 0 ? `能量${eCost}` : '', sCost > 0 ? `祭品${sCost}` : '', bCost > 0 ? `骨头${bCost}` : ''].filter(Boolean).join(' ') || '能量0';
       actBtn.textContent = inst.activatedThisTurn ? '本回合已发动【启动】' : `⚡ 启动 (消耗${costLbl})${extraCondReason}`;
       actBtn.onclick = async () => {
         if (!canAct) return;
-        if (c.id === 'cmwdzvs1woa53') {
+        if (actInfo.need === 'hand_card') {
           openSingleHandPickModal(inst, [...pst.hand], '【龙心秘宝·启动】请选择 1 张手牌将其弃置，并获得 1 张『雏龙的蛋』', async (discardedCard) => {
-            sfx.play('synergy');
-            inst.activatedThisTurn = true;
-            const dIdx = pst.hand.indexOf(discardedCard);
-            if (dIdx !== -1) {
-              pst.hand.splice(dIdx, 1);
-              addBones(side, 1);
-              spawnFloatNumber(side, -1, '🦴弃牌 骨头+1', '#fde047');
-            }
-            await showTriggeredEffectToast(c, `【启动】弃置『${discardedCard.data.name}』，将1张『雏龙的蛋』加入手牌！`, 260);
-            await addCardToHandAnimated(side, '雏龙的蛋', 1, lane, c.name);
-            openCardDetailPanel(inst, 'board', side, lane);
-            renderAllBattleUI();
-            if (battleMode === 'pvp_online' && onlineIsMyTurn()) {
-              broadcastOnlineSync('ACTION', `发动了『${c.name}』的【启动】能力`, { cid: c.id, cardType: 'activate' });
-            }
+            await cfRequestActivate(side, lane, { handTargetUid: discardedCard.uid });
+            if (battle.board[side][lane] === inst) openCardDetailPanel(inst, 'board', side, lane);
           });
           return;
         }
-        sfx.play('synergy');
-        spendLeaderEnergy(side, eCost);
-        pst.energySpentTotal = (pst.energySpentTotal || 0) + eCost;
-        pst.bones -= bCost;
-        inst.activatedThisTurn = true;
-        if (c.id === 'cmwbxu7u3tpyo') {
-          await showTriggeredEffectToast(c, '【启动】将2张『电子羊』加入手牌。', 240);
-          await addCardToHandAnimated(side, '电子羊', 2, lane, c.name);
-        } else if (c.id === 'cmwfdhecfc856') {
-          await showTriggeredEffectToast(c, '【启动】将1张具有屏障的『雏龙的蛋』加入手牌。', 240);
-          await addCardToHandAnimated(side, '雏龙的蛋', 1, lane, c.name, '屏障');
-        } else if (c.id === 'cmwfdugclc9w9') {
-          await showTriggeredEffectToast(c, '【启动】召唤1个『怨灵』到己方战场上！', 240);
-          await summonByNameAnimated(side, '怨灵', 1, lane, false, c.name);
-        } else if (c.id === 'cmwfg76dbmxry') {
-          await showTriggeredEffectToast(c, '【启动】消耗2骨头，将2张『咆哮的狼人』洗入牌库！', 240);
-          for (let wi = 0; wi < 2; wi++) st.deck.push(createCardInstance(c, side));
-          st.deck.sort(() => Math.random() - 0.5);
-        } else if (c.id === 'cmwfhe6xv5el7') {
-          await showTriggeredEffectToast(c, '【启动】【亡者召还_价值2】', 240);
-          await reanimateMinionAnimated(side, { value: 2 }, '', typeof targetLane !== 'undefined' ? targetLane : (typeof lane !== 'undefined' ? lane : -1), false, (typeof card !== 'undefined' && card.data ? card.data.name : (typeof c !== 'undefined' ? c.name : '冥河引渡人')));
-        } else if (c.id === 'cmwgrgw6jyd8p') {
-          await showTriggeredEffectToast(c, '【启动】消耗 6 骨头，发动【亡者召还_价值3】！', 240);
-          await reanimateMinionAnimated(side, { value: 3 }, '', lane, false, c.name);
-        } else if (c.id === 'cmwgchn8wmoi5') {
-          await showTriggeredEffectToast(c, '【启动】消耗1点能量，召唤1个『怨灵』！', 240);
-          await summonByNameAnimated(side, '怨灵', 1, lane, false, c.name);
-        } else if (c.id === 'cmwgepbm7hzy9') {
-          const sacCands = [0,1,2,3,4].filter(sl => battle.board[side][sl] && battle.board[side][sl].data.type === 'minion' && battle.board[side][sl] !== inst);
-          if (sacCands.length > 0) {
-            sacCands.sort((a, b) => compareTributeCandidatesForAI(battle.board[side][a], battle.board[side][b]));
-            await showTriggeredEffectToast(c, `【启动】献祭『${battle.board[side][sacCands[0]].data.name}』，召唤1个『狼少女』！`, 240);
-            await destroyMinionAnimated(side, sacCands[0], true);
-            await summonByNameAnimated(side, 'cmwgepbm7hzy9', 1, lane, false, c.name);
-          }
-        } else if (c.id === 'cmwgysie8srmh') {
-          const roseCrest = (pst.crests || []).find(cr => cr.id === 'crest_arrogant_rose');
-          if (roseCrest) {
-            roseCrest.countdown += 1;
-            await playCrestTriggerVFX(side, roseCrest.id);
-            await showTriggeredEffectToast(c, `【启动】使【${roseCrest.name}】倒计时+1（当前倒计时 ${roseCrest.countdown}）！`, 260);
-          }
-        } else if (c.id === 'cmwgyyghnbr4n') {
-          await showTriggeredEffectToast(c, '【启动】消耗 6 骨头，将 2 张『鲜血爆发』加入手牌！', 240);
-          await addCardToHandAnimated(side, '鲜血爆发', 2, lane, c.name);
-        } else if (c.id === 'cmwgz1zd1u6au') {
-          inst.countdown = (inst.countdown || 0) + 1;
-          spawnFloatNumber(side, lane, '⏳+1', '#38bdf8');
-          await showTriggeredEffectToast(c, `【启动】消耗 3 骨头，使『阴深的城堡』倒计时+1（当前 ${inst.countdown}）！`, 240);
-        } else if (c.id === 'cmwhnqd6sxcdq') {
-          inst.grantedOnAttackThreeSide3 = true;
-          addGrantedEffect(inst, '来源：【归来的剑圣·启动】 → 获得【攻击时】对前面和相邻敌方随从造成3点伤害');
-          spawnFloatNumber(side, lane, '⚔️三线斩!', '#38bdf8');
-          await showTriggeredEffectToast(c, '【启动】『归来的剑圣』获得攻击时三线3点伤害！', 240);
-        } else if (c.id === 'cmwhq3vyptao6') {
-          await showTriggeredEffectToast(c, '【启动】消耗 6 骨头，召唤 2 个『圣骑兵』！', 240);
-          await summonByNameAnimated(side, 'cmwhoxkqvs8bv', 2, lane, false, c.name);
-        } else if (c.id === 'cmwget8v364ar' || c.id === 'cmwlomedyjchl') {
-          // 退回消耗并在战场上选择 1 个敌方随从（同时退回骨头，防止二次扣减导致骨头变负数）
-          pst.energy += eCost;
-          pst.bones += bCost;
-          inst.activatedThisTurn = false;
-          const oppLanes = [0,1,2,3,4].filter(el => battle.board[1 - side][el] && battle.board[1 - side][el].data.type === 'minion' && !battle.board[1 - side][el].activeKw['潜行']);
-          if (oppLanes.length === 0) {
-            showSacrificeGuideBanner('⚠️ 无可选目标', '敌方战场上没有可指定的随从');
-            return;
-          }
+        if (actInfo.need === 'enemy_minion') {
+          // 进入选目标模式：由 onBoardLaneClicked 收集目标后调用 cfRequestActivate
           battle.pendingActivate = { side, lane, inst, eCost, bCost };
           document.getElementById('svDetailPanel').classList.add('hidden');
           showSacrificeGuideBanner(`🎯 ${c.name}·启动`, c.id === 'cmwlomedyjchl' ? '请点击 1 个敌方随从，对其造成 3 点伤害并召唤 1 个『骷髅』' : `请点击 1 个敌方随从，对其造成 ${inst.currentAtk} 点伤害`);
           renderAllBattleUI();
           return;
-        } else if (c.id === 'cmwdw5qt6cbqb') {
-          const wyvCrest = (pst.crests || []).find(cr => cr.id === 'crest_wyvern_rider');
-          if (wyvCrest) {
-            wyvCrest.countdown += 1;
-            await playCrestTriggerVFX(side, wyvCrest.id);
-            await showTriggeredEffectToast(c, `【启动】使【${wyvCrest.name}】倒计时+1（当前倒计时 ${wyvCrest.countdown}）！`, 260);
-          }
-        } else if (ast.activate && ast.activate.actions.length > 0) {
-          await executeASTActionList(side, inst, lane, ast.activate.actions, -1, false);
         }
-        openCardDetailPanel(inst, 'board', side, lane);
-        renderAllBattleUI();
-        if (battleMode === 'pvp_online' && onlineIsMyTurn()) {
-          broadcastOnlineSync('ACTION', `发动了『${c.name}』的【启动】能力`, { cid: c.id, cardType: 'activate' });
-        }
+        await cfRequestActivate(side, lane, {});
+        if (battle.board[side][lane] === inst) openCardDetailPanel(inst, 'board', side, lane);
       };
     } else if (location === 'hand' && hasFuseKw) {
       actBox.classList.remove('hidden');
@@ -621,12 +512,8 @@ function executeCardFusionLogic(side, sourceInst, fusedHandCards) {
   }
   const fuseCardIcon = { id: 'sys_fusion', name: '敌方融合', type: 'spell', rarity: '史诗', energy: 0, bones: 0, sacrifice: 0 };
   const fuseEffectDesc = `敌方发动【融合】（消耗 ${count} 张手牌素材${fuseInfo.costReducePerCard > 0 ? '，目标卡牌能量费用减少' : ''}）`;
-  if (side === 1) {
+  if (side === 1 && battleMode !== 'pvp_online') {
     showTriggeredEffectToast(fuseCardIcon, fuseEffectDesc, 260);
-  }
-  if (battleMode === 'pvp_online' && onlineIsMyTurn()) {
-    recordLocalVfx({ kind: 'toast', cid: 'sys_fusion', cardData: fuseCardIcon, msg: fuseEffectDesc });
-    broadcastOnlineSync('ACTION', `对手发动了【融合】（消耗 ${count} 张手牌素材）`, { cid: 'sys_fusion', cardType: 'fuse' });
   }
 }
 
@@ -668,18 +555,10 @@ function openMultiFuseModal(sourceInst, validMaterials, fuseInfo = null) {
     if (battle.multiFuseUids.size === 0) return;
     modal.classList.add('hidden');
     modal.style.display = 'none';
-    const pst = battle.leaders[sourceInst.owner] || battle.leaders[0];
-    const chosen = pst.hand.filter(h => battle.multiFuseUids.has(h.uid));
-    const count = chosen.length;
-    executeCardFusionLogic(sourceInst.owner, sourceInst, chosen);
-    sfx.play('synergy');
-
-    let toastMsg = `【融合】已融合 ${count} 张卡牌（累计融合 ${sourceInst.fusedCount} 张）！`;
-    if (info.costReducePerCard > 0) {
-      toastMsg = `【融合】已融合 ${count} 张卡牌，本卡能量费用 -${info.costReducePerCard * count}！`;
-    }
-    await showTriggeredEffectToast(sourceInst.data, toastMsg, 300);
-    openCardDetailPanel(sourceInst, 'hand', sourceInst.owner, -1);
+    const side = sourceInst.owner || 0;
+    const r = await cfRequestFusion(side, sourceInst.uid, [...battle.multiFuseUids]);
+    const still = battle.leaders[side].hand.find(h => h.uid === sourceInst.uid);
+    if (r.ok && still) openCardDetailPanel(still, 'hand', side, -1);
     renderAllBattleUI();
   };
 

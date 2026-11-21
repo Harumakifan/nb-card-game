@@ -330,6 +330,14 @@ async function checkAndTriggerLawManifestInvocation(side) {
 
 // 规则：「回合结束时召唤的随从都可以立刻攻击（例如飞龙骑手召唤的龙蛋被孵化器孵化后可以立刻攻击）」
 async function executeEndTurnSequence(side) {
+  if (cfIsOnlineClient()) {
+    if (side !== 0 || !onlineIsMyTurn()) return;
+    cancelPendingPlayToHand();
+    stopTurnCountdownTimer();
+    const r = await cfNetAction('END_TURN', {});
+    if (!r.ok) { cfShowRejectToast(r.reason); startTurnCountdownTimer(); }
+    return;
+  }
   const _sid = _battleSessionSeq;
   const _eotCombatEvents = [];
   if (battle.gameOver || battle.activeSide !== side || battle.animating) return;
@@ -586,14 +594,8 @@ async function executeEndTurnSequence(side) {
   }
   if (_sid !== _battleSessionSeq) return;
   if (battleMode === 'pvp_online') {
-    if (battle.gameOver) {
-      broadcastOnlineSync('GAME_OVER', '决出胜负', { combatEvents: _eotCombatEvents });
-    } else {
-      OnlineState.activeRole = OnlineState.role === 'host' ? 'guest' : 'host';
-      battle.activeSide = 1;
-      updateOnlineHudPill();
-      broadcastOnlineSync('TURN_END', '结束了回合', { combatEvents: typeof _eotCombatEvents !== 'undefined' ? _eotCombatEvents : [] });
-    }
+    // 仅在服务器无头引擎中走到这里：交接回合由 MatchEngine 负责（翻转视角后开始对方回合）
+    if (!battle.gameOver) battle.activeSide = 1;
     return;
   }
   if (!battle.gameOver) {

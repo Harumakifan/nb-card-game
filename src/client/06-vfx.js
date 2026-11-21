@@ -14,7 +14,17 @@ function closeCardDetailIfConflict() {
   }
 }
 
-function recordBattleTurnEvent(side, kind, text, cardData = null) {
+// 私密提示：只应让行动方本人看到具体卡面（例如从牌库检索到的卡）。服务器会对另一方隐藏卡名与卡图。
+let cfToastPrivacyDepth = 0;
+let cfToastPublicText = '';
+async function cfPrivateToast(cardData, text, waitMs, publicText = '对手发动了一个不公开的效果') {
+  cfToastPrivacyDepth++;
+  const prevPub = cfToastPublicText;
+  cfToastPublicText = publicText;
+  try { return await showTriggeredEffectToast(cardData, text, waitMs); } finally { cfToastPrivacyDepth--; cfToastPublicText = prevPub; }
+}
+
+function recordBattleTurnEvent(side, kind, text, cardData = null, isPrivate = false) {
   if (typeof battle === 'undefined' || !battle) return;
   if (!Array.isArray(battle.turnLogs)) battle.turnLogs = [];
   const tNum = battle.turn || 1;
@@ -31,6 +41,8 @@ function recordBattleTurnEvent(side, kind, text, cardData = null) {
   if (last && last.kind === kind && last.text === cleanText && last.cardName === (cardData?.name || '')) return;
   grp.events.push({
     kind,
+    priv: isPrivate ? 1 : undefined,
+    pub: isPrivate ? String(isPrivate === true ? '对手发动了一个不公开的效果' : isPrivate) : undefined,
     text: cleanText,
     cardId: (cardData && cardData.id && typeof cardsById !== 'undefined' && cardsById[cardData.id]) ? cardData.id : '',
     cardName: (cardData && cardData.name) ? cardData.name : ''
@@ -45,13 +57,14 @@ async function showTriggeredEffectToast(cardData, triggeredClauseText, waitMs = 
   const activeOrSourceSide = (sourceSide === 0 || sourceSide === 1)
     ? sourceSide
     : ((typeof battle !== 'undefined' && battle) ? (battle.activeSide ?? 0) : 0);
+  const _isPrivateToast = cfToastPrivacyDepth > 0;
   if (cardData && cardData.id !== 'sys_notice') {
-    recordBattleTurnEvent(activeOrSourceSide, 'effect', triggeredClauseText, cardData);
+    recordBattleTurnEvent(activeOrSourceSide, 'effect', triggeredClauseText, cardData, _isPrivateToast ? cfToastPublicText : false);
   }
-  if (typeof battleMode !== 'undefined' && battleMode === 'pvp_online' && typeof OnlineState !== 'undefined' && OnlineState.inMatch && typeof onlineIsMyTurn === 'function' && onlineIsMyTurn() && !OnlineState._replayingVfx) {
+  if (typeof recordLocalVfx === 'function') {
     const cid = (cardData && cardData.id) ? cardData.id : 'sys_notice';
     if (cid !== 'sys_fusion') {
-      recordLocalVfx({ kind: 'toast', cid, cardData: (cid && typeof cardsById !== 'undefined' && cardsById[cid]) ? null : cardData, msg: triggeredClauseText });
+      recordLocalVfx({ kind: 'toast', side: activeOrSourceSide, cid, cardData: (cid && typeof cardsById !== 'undefined' && cardsById[cid]) ? null : cardData, msg: triggeredClauseText, priv: _isPrivateToast || undefined, pub: _isPrivateToast ? cfToastPublicText : undefined });
     }
   }
   // 精确锁定单张触发效果的卡牌播放脉冲动画，绝不让己方或敌方同名卡一起闪
@@ -90,11 +103,11 @@ async function showTriggeredEffectToast(cardData, triggeredClauseText, waitMs = 
   const imgUri = getAnimeIllustrationDataURI(cardData);
   item.innerHTML = `
     <div class="w-12 h-12 lg:w-20 lg:h-20 rounded-xl overflow-hidden border-2 border-amber-400 shrink-0 shadow-lg">
-      <img src="${imgUri}" class="w-full h-full object-cover" alt="${cardData.name}"/>
+      <img src="${escapeHtml(imgUri)}" class="w-full h-full object-cover" alt="${escapeHtml(cardData.name)}"/>
     </div>
     <div class="flex flex-col min-w-0 flex-1">
-      <div class="text-sm lg:text-lg font-black text-amber-300 truncate">${cardData.name}</div>
-      <div class="text-xs lg:text-base text-slate-100 leading-snug sv-toast-desc-clamp">${triggeredClauseText}</div>
+      <div class="text-sm lg:text-lg font-black text-amber-300 truncate">${escapeHtml(cardData.name)}</div>
+      <div class="text-xs lg:text-base text-slate-100 leading-snug sv-toast-desc-clamp">${escapeHtml(triggeredClauseText)}</div>
     </div>
   `;
   feed.appendChild(item);

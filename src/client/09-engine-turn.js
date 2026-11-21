@@ -489,7 +489,7 @@ async function beginTurnSequence(side) {
       if (st.hand.length < (st.handLimit || RULES.handLimit)) {
         st.hand.push(lwc);
         renderAllBattleUI();
-        await showTriggeredEffectToast(lwc.data, '【寻觅的亡灵】从牌库抽取1张具有【谢幕曲】的卡牌！', 280);
+        await cfPrivateToast(lwc.data, '【寻觅的亡灵】从牌库抽取1张具有【谢幕曲】的卡牌！', 280, '【寻觅的亡灵】对手从牌库检索了 1 张卡牌');
       } else {
         await playOverdrawBurnAnim(side, lwc.data);
       }
@@ -514,7 +514,7 @@ async function beginTurnSequence(side) {
         });
         hiddenCardUids.delete(mc.uid);
         renderAllBattleUI();
-        await showTriggeredEffectToast(mc.data, '从牌库抽取1张机械随从卡。', 320);
+        await cfPrivateToast(mc.data, '从牌库抽取1张机械随从卡。', 320, '对手从牌库检索了 1 张机械随从卡');
       } else {
         await playOverdrawBurnAnim(side, mc.data);
       }

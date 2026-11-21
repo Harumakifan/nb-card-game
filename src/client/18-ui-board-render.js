@@ -937,6 +937,18 @@ function renderAllBattleUI() {
   const desiredNodes = [];
   pst.hand.forEach((inst, idx) => {
     if (pp && pp.card === inst) return;
+    if (inst.hidden) {
+      const back = document.createElement('div');
+      back.dataset.cardUid = String(inst.uid);
+      back.className = 'sv-hand-card sv-hand-card-back';
+      back.innerHTML = '<div class="sv-hand-card-back-emblem"></div>';
+      back.style.marginLeft = idx > 0 ? `${handOverlapMl}px` : '0px';
+      const midB = (totalHand - 1) / 2;
+      back.style.setProperty('--fan-y', `${(Math.abs(idx - midB) * arcStepY).toFixed(2)}px`);
+      back.style.setProperty('--fan-rot', `${((idx - midB) * arcStepDeg).toFixed(2)}deg`);
+      desiredNodes.push(back);
+      return;
+    }
     const playEval = evaluateCardPlayState(0, inst);
     const canPlayGlow = Boolean((battle.activeSide === 0 || battleMode === 'pvp_pass') && !battle.gameOver && !pp && playEval.ok);
     const condReady = canPlayGlow ? evaluateHandCardConditionReady(inst, 0, playEval) : false;
@@ -1011,37 +1023,11 @@ async function onBoardLaneClicked(side, lane) {
     const pa = battle.pendingActivate;
     const opp = 1 - pa.side;
     const tm = battle.board[opp][lane];
-    if (side === opp && tm && tm.data.type === 'minion' && !tm.activeKw['潜行']) {
-      battle.pendingActivate = null;
-      showSacrificeGuideBanner('', '');
-      const pst = battle.leaders[pa.side];
-      if (getTotalAvailableEnergy(pst) < pa.eCost || pst.bones < pa.bCost) {
-        showSacrificeGuideBanner('⚠️ 资源不足', '当前能量或骨头不足以发动【启动】');
-        renderAllBattleUI();
-        return;
-      }
-      spendLeaderEnergy(pa.side, pa.eCost);
-      pst.energySpentTotal = (pst.energySpentTotal || 0) + pa.eCost;
-      pst.bones = Math.max(0, pst.bones - pa.bCost);
-      pa.inst.activatedThisTurn = true;
-      sfx.play('synergy');
-      await playSynergyBeam(getLaneDOM(pa.side, pa.lane), getLaneDOM(opp, lane), '#f43f5e', 240);
-      if (pa.inst.data.id === 'cmwlomedyjchl') {
-        await showTriggeredEffectToast(pa.inst.data, `【杂耍戏命师·启动】对『${tm.data.name}』造成 3 点伤害，召唤 1 个『骷髅』！`, 240);
-        await dealDamageToMinionAnimated(opp, lane, 3, pa.inst);
-        await summonByNameAnimated(pa.side, '骷髅', 1, pa.lane, false, pa.inst.data.name);
-      } else {
-        await showTriggeredEffectToast(pa.inst.data, `【大剑少女·启动】对『${tm.data.name}』造成 ${pa.inst.currentAtk} 点伤害！`, 240);
-        await dealDamageToMinionAnimated(opp, lane, pa.inst.currentAtk, pa.inst);
-      }
-      if (!battle.gameOver && typeof checkAndTriggerDeusExMachinaInvocation === 'function') {
-        await checkAndTriggerDeusExMachinaInvocation(pa.side);
-      }
-      renderAllBattleUI();
-      return;
-    }
     battle.pendingActivate = null;
     showSacrificeGuideBanner('', '');
+    if (side === opp && tm && tm.data.type === 'minion' && !tm.activeKw['潜行']) {
+      await cfRequestActivate(pa.side, pa.lane, { targetLane: lane });
+    }
     renderAllBattleUI();
     return;
   }

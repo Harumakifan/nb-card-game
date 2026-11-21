@@ -1,15 +1,10 @@
-async function commitCardPlayWithAnimations(side, card, playEval, targetLane, sacrificeLanes = [], choiceIdx = -1, extraEnergyCost = 0, effectTargetLane = -1, swapLane = -1, effectTargetLane2 = -1) {
-  const _sacCount = Array.isArray(sacrificeLanes) ? sacrificeLanes.length : 0;
-  const _res = await _innerCommitCardPlayWithAnimations(side, card, playEval, targetLane, sacrificeLanes, choiceIdx, extraEnergyCost, effectTargetLane, swapLane, effectTargetLane2);
-  if (battleMode === 'pvp_online' && side === 0 && onlineIsMyTurn()) {
-    broadcastOnlineSync(battle.gameOver ? 'GAME_OVER' : 'ACTION', `使用了『${card.data.name}』`, {
-      cid: card.data.id,
-      cardType: card.data.type,
-      lane: targetLane,
-      sacCount: _sacCount
-    });
+// 参数顺序与 _innerCommitCardPlayWithAnimations 一致（旧版形参名与实际含义错位，已更正）
+async function commitCardPlayWithAnimations(side, card, playEval, targetLane, sacLanes = [], effectTargetLane = -1, choiceIdx = -1, handTargetUid = -1, effectTargetSide = -1, effectTargetLane2 = -1) {
+  if (cfIsOnlineClient() && side === 0) {
+    // 联机：把玩家的选择交给服务器结算，结果（含特效事件）通过 STATE 消息返回
+    return cfNetPlayCard(card, targetLane, Array.isArray(sacLanes) ? sacLanes : [], effectTargetLane, choiceIdx, handTargetUid, effectTargetSide, effectTargetLane2);
   }
-  return _res;
+  return _innerCommitCardPlayWithAnimations(side, card, playEval, targetLane, sacLanes, effectTargetLane, choiceIdx, handTargetUid, effectTargetSide, effectTargetLane2);
 }
 async function playHandCardWaveAndVanishVFX(side, card) {
   if (!card) return;

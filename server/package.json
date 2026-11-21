@@ -1,0 +1,16 @@
+{
+  "name": "@cardforge/server",
+  "private": true,
+  "version": "1.88.0",
+  "description": "CardForge 权威对战服务器（大厅 / 房间 / 对局裁判 / 观战）",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ws": "8.22.0"
+  }
+}

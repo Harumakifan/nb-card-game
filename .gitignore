@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.bak-*
+# 生成产物：由 scripts/split-art-pack.mjs / pack_cards_svg.py 产出，不进仓库
+cards_art_pack*.js
+*.zip
+.env

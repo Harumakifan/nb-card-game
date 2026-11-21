@@ -13,6 +13,8 @@
   "11-engine-effects.js",
   "12-engine-card-play.js",
   "13-engine-combat.js",
+  "13a-engine-actions.js",
+  "13b-engine-sync.js",
   "14-pvp-pass.js",
   "15-online-net.js",
   "16-ai.js",
