@@ -16710,7 +16710,10 @@ function updateResponsiveViewportScale() {
     : Math.min(1, vw / 1340, vh / 840);
   scale = Math.max(0.32, Math.min(1, scale));
   document.documentElement.style.setProperty('--ui-scale', scale.toFixed(4));
-  const mulScale = Math.max(0.30, Math.min(1, (vw - 24) / 1120, (vh - 20) / 690));
+  const isPortraitMul = vw < vh && vw <= 760;
+  const mulScale = isPortraitMul
+    ? Math.max(0.36, Math.min(1.06, (vw - 12) / 764, (vh - 16) / 690))
+    : Math.max(0.36, Math.min(1.06, (vw - 12) / 948, (vh - 10) / 568));
   document.documentElement.style.setProperty('--mulligan-scale', mulScale.toFixed(4));
   const aspect = vw / Math.max(1, vh);
   let sideHudScale = 1.0;
@@ -17287,6 +17290,16 @@ document.getElementById('btnSaveAvatar')?.addEventListener('click', () => {
   try { localStorage.setItem('cf_custom_avatar_v1', JSON.stringify(userAvatarConfig)); } catch (e) {}
   applyUserAvatarToUI();
   document.getElementById('leaderAvatarModal').classList.add('hidden');
+});
+document.getElementById('btnAvatarGoDeckEditor')?.addEventListener('click', () => {
+  const avModal = document.getElementById('leaderAvatarModal');
+  if (avModal) avModal.classList.add('hidden');
+  const mm = document.getElementById('mainMenuOverlay');
+  if (mm) mm.classList.add('hidden');
+  document.getElementById('btnNavDeck')?.click();
+  if (typeof showToast === 'function') {
+    showToast('🎨 点击任意卡牌查看详情，即可设为「游戏头像」或「主战者形象」', 'info');
+  }
 });
 
 // 主菜单事件绑定
@@ -18964,7 +18977,7 @@ if (document.readyState === 'loading') {
 window.onload = bootGameNow;
 
 
-const GAME_VERSION = '1.74';
+const GAME_VERSION = '1.76';
 window.GAME_VERSION = GAME_VERSION;
 
 
@@ -19431,13 +19444,22 @@ window.GAME_VERSION = GAME_VERSION;
         };
         req.onerror = () => resolve();
       });
-      if (count > 0) {
+      window.refreshAllCardArtUI = function () {
         if (typeof artCache === 'object' && artCache) Object.keys(artCache).forEach(k => delete artCache[k]);
         if (typeof artLayerCache === 'object' && artLayerCache) Object.keys(artLayerCache).forEach(k => delete artLayerCache[k]);
         if (typeof renderAllBattleUI === 'function') renderAllBattleUI();
         if (typeof renderDeckEditor === 'function') renderDeckEditor();
         if (typeof window.refreshMainMenuCards === 'function') window.refreshMainMenuCards();
         if (typeof applyUserAvatarToUI === 'function') applyUserAvatarToUI();
+        const mulModal = document.getElementById('mulliganModal');
+        if (mulModal && !mulModal.classList.contains('hidden') && typeof renderMulliganDualBox === 'function') {
+          if (typeof _mulliganCardCache !== 'undefined' && _mulliganCardCache && _mulliganCardCache.clear) _mulliganCardCache.clear();
+          renderMulliganDualBox();
+        }
+        updateImportBtnBadge();
+      };
+      if (count > 0) {
+        window.refreshAllCardArtUI();
       }
       updateImportBtnBadge();
     } catch (e) {}

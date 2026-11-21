@@ -6117,3 +6117,260 @@ body.lethal-slowmo #screenBattle {
   0%   { opacity: 0.45; transform: scale(0.8); }
   100% { opacity: 0.88; transform: scale(1.22); }
 }
+
+
+/* ============================================================================
+   /* === v1.75 手机端开局换牌卡牌放大适配 === */
+   压缩上下换牌框多余留白并将单卡放大至 174x232，结合 --mulligan-scale 让手机端开局换牌明显更大更清晰
+   ============================================================================ */
+@media (max-width: 1024px), (max-height: 620px) {
+  #mulliganModal {
+    padding: 4px !important;
+  }
+  #mulliganModal > div {
+    gap: 14px !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: scale(var(--mulligan-scale, 0.72)) !important;
+    transform-origin: center center !important;
+  }
+  #mulliganModal > div > div:first-child {
+    width: 752px !important;
+    gap: 5px !important;
+  }
+  #mulliganTopBox,
+  #mulliganBottomBox {
+    padding: 6px 10px !important;
+    border-radius: 12px !important;
+  }
+  #mulliganTopBox > div:first-child {
+    margin-bottom: 2px !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+  }
+  #mulliganBottomBox > div:last-child {
+    margin-top: 2px !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+  }
+  #mulliganModal > div > div:first-child > div:nth-child(2) {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+  }
+  #mulliganSwapSlots,
+  #mulliganKeepSlots {
+    min-height: 232px !important;
+    gap: 10px !important;
+    align-items: center !important;
+  }
+  #mulliganSwapSlots > div,
+  #mulliganKeepSlots > div,
+  #mulliganModal .cf-mulligan-slot,
+  #mulliganModal .sv-hand-card,
+  #mulliganModal .sv-hand-card.sv-temple-card-shell {
+    width: 174px !important;
+    height: 232px !important;
+    box-sizing: border-box !important;
+  }
+  #mulliganModal > div > div:last-child {
+    width: 168px !important;
+    height: 520px !important;
+    gap: 8px !important;
+  }
+  #btnConfirmMulligan {
+    width: 118px !important;
+    height: 118px !important;
+    font-size: 20px !important;
+  }
+  #mulliganOrderLabel {
+    font-size: 20px !important;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  #mulliganModal > div {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  #mulliganModal > div > div:last-child {
+    flex-direction: row !important;
+    width: 752px !important;
+    height: auto !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+  #mulliganModal > div > div:last-child > div {
+    flex: 1 1 0 !important;
+  }
+  #btnConfirmMulligan {
+    width: 108px !important;
+    height: 108px !important;
+    flex: 0 0 auto !important;
+  }
+}
+
+
+/* ============================================================================
+   v1.76: 己方主战者头像放大（重点消除手机端双重缩小）+ 手机端全面 UI 适配优化
+   ============================================================================ */
+/* 1. 桌面端己方主战者头像略微放大，画面更具气势 */
+#playerLeaderNode {
+  bottom: 38px !important;
+}
+#playerLeaderNode.hand-expanded-hp {
+  bottom: 38px !important;
+}
+#playerLeaderNode > div:nth-child(2) {
+  width: 186px !important;
+  height: 156px !important;
+  border-top-left-radius: 44px !important;
+  border-top-right-radius: 44px !important;
+}
+
+@media (max-height: 820px), (max-width: 1180px) {
+  #playerLeaderNode {
+    bottom: 30px !important;
+  }
+  #playerLeaderNode > div:nth-child(2) {
+    width: 176px !important;
+    height: 148px !important;
+  }
+}
+
+/* 2. 手机端：主战场整体已受 --ui-scale 缩放，己方主战者不再二次大幅缩小，视觉面积提升一倍以上 */
+@media (max-height: 660px), (max-width: 900px) {
+  #enemyAvatarCanvasWrap {
+    width: 136px !important;
+    height: 108px !important;
+  }
+  #enemyCrestBox {
+    left: calc(50% + 122px) !important;
+  }
+  #playerLeaderNode {
+    bottom: 20px !important;
+  }
+  #playerLeaderNode.hand-expanded-hp {
+    bottom: 20px !important;
+  }
+  #playerLeaderNode > div:nth-child(2) {
+    width: 172px !important;
+    height: 146px !important;
+    border-top-left-radius: 38px !important;
+    border-top-right-radius: 38px !important;
+  }
+  #playerLeaderNode > div:nth-child(3) {
+    left: calc(100% - 10px) !important;
+    bottom: 14px !important;
+  }
+  #battleCenterArea {
+    padding-top: 8px !important;
+    padding-bottom: 4px !important;
+  }
+}
+
+/* 3. 手机端右下角回合/先后手 HUD 紧凑适配，避免挤压最右侧手牌或结束按钮 */
+@media (max-width: 1024px), (max-height: 620px) {
+  #bottomRightTurnInfoHud {
+    right: 8px !important;
+    bottom: 8px !important;
+    gap: 6px !important;
+    transform: scale(0.84) !important;
+    transform-origin: bottom right !important;
+  }
+  #svDetailPanel {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 4. 卡牌编辑器详情弹窗 (#deckCardDetailDialog) 手机横屏紧凑适配（完整容纳头像/主战者与加减按钮） */
+@media (max-height: 520px) and (max-width: 1024px) {
+  #deckCardDetailModal {
+    padding: 8px !important;
+  }
+  #deckCardDetailDialog {
+    flex-direction: row !important;
+    width: 96vw !important;
+    height: min(94dvh, 420px) !important;
+    padding: 10px 12px !important;
+    gap: 10px !important;
+  }
+  #deckDetailLeftArtPane {
+    width: 206px !important;
+    min-width: 206px !important;
+    padding: 6px !important;
+  }
+  .deck-detail-enlarged-card {
+    transform: scale(1.18) !important;
+  }
+  #deckCardDetailDialog #deckInspectedMeta {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+  }
+  #deckCardDetailDialog #deckInspectedEffect {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+  #btnDeckSetCardAvatar,
+  #btnDeckSetCardLeader,
+  #btnDeckDetailAdd,
+  #btnDeckDetailRemove {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* 5. 卡牌编辑器详情弹窗手机竖屏适配：改为上下堆叠，彻底避免右侧文字与按钮被挤压 */
+@media (max-width: 680px) and (orientation: portrait) {
+  #deckCardDetailDialog {
+    flex-direction: column !important;
+    width: 94vw !important;
+    height: auto !important;
+    max-height: 92dvh !important;
+    overflow-y: auto !important;
+    padding: 12px !important;
+    gap: 10px !important;
+  }
+  #deckDetailLeftArtPane {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 230px !important;
+    padding: 8px !important;
+  }
+  .deck-detail-enlarged-card {
+    transform: scale(0.98) !important;
+  }
+  #deckCardDetailDialog > div:last-child {
+    overflow: visible !important;
+  }
+}
+
+/* 6. 教程弹窗 (#tutorialModal) 在手机端改为顶部横向标签栏，正文占满全宽 */
+@media (max-width: 760px) {
+  #tutorialModal > div > div:nth-child(2) {
+    flex-direction: column !important;
+  }
+  #tutSidebar {
+    width: 100% !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border-right: none !important;
+    border-bottom: 1px solid #1e293b !important;
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+  #tutSidebar .tut-tab-btn {
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
+    padding: 6px 10px !important;
+  }
+  #tutBodyScroll {
+    padding: 12px !important;
+  }
+}
