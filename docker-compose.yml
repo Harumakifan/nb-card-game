@@ -1,11 +1,38 @@
 services:
-  cardforge:
+  web:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: cardforge-game
+      target: web
+    container_name: cardforge-web
     restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
     ports:
-      # 默认映射到宿主机 8080 端口，避免与服务器已有 80 端口冲突
-      # 如需直接用 80 端口，启动时执行：PORT=80 docker compose up -d --build
+      # 默认只绑定本机回环，由 cloudflared 等隧道转发（nginx 只在此前提下信任 CF-Connecting-IP）
+      # 如需直接对外：BIND=0.0.0.0 PORT=80 docker compose up -d --build（此时请删除 nginx 中的 set_real_ip_from 内网段）
       - "${BIND:-127.0.0.1}:${PORT:-8080}:80"
+
+  server:
+    build:
+      context: .
+      target: server
+    container_name: cardforge-server
+    restart: unless-stopped
+    environment:
+      TRUST_PROXY: "1"
+      # 浏览器访问的站点地址（逗号分隔），例如 https://cards.example.com。
+      # 留空时要求 Origin 与转发来的 Host 一致；若隧道改写了 Host 导致联机连接被拒（403），请显式填写。
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+      TURN_SECONDS: "${TURN_SECONDS:-60}"
+      MULLIGAN_SECONDS: "${MULLIGAN_SECONDS:-30}"
+      AWAY_GRACE_SECONDS: "${AWAY_GRACE_SECONDS:-45}"
+    expose:
+      - "8787"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

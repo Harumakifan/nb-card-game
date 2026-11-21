@@ -1,0 +1,29 @@
+{
+  "name": "cardforge",
+  "private": true,
+  "version": "1.88.0",
+  "description": "CardForge · 冥刻之诗 —— 前端静态资源 + Node 权威对战服务器",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "server"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:dev": "node scripts/build.mjs --dev",
+    "art:split": "node scripts/split-art-pack.mjs",
+    "start": "node server/src/index.js",
+    "dev": "node scripts/build.mjs --dev && node server/src/index.js --static dist --port 8787",
+    "serve": "node server/src/index.js --static dist",
+    "test": "node --test server/test/*.test.js",
+    "test:e2e": "node --test --test-concurrency=1 server/test/e2e/*.e2e.mjs",
+    "test:soak": "node server/test/soak.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.1",
+    "sharp": "0.35.4"
+  }
+}

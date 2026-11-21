@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='36'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E">
+  <title>CardForge · 冥刻之诗 — 影之诗：超凡世界桌面版 & 规范用语卡牌设计器</title>
+<link rel="stylesheet" href="styles.css?v=135">
+</head>
+<body class="sv-arena-bg select-none">
+
+<!-- 动态赛博星界战场背景 Canvas -->
+<canvas id="bgDynamicCanvas" class="fixed inset-0 w-full h-full pointer-events-none z-0"></canvas>
+<!-- 全局鼠标长按蓄力特效 Canvas -->
+<canvas id="longPressCanvas" class="fixed inset-0 w-full h-full pointer-events-none z-[175]"></canvas>
+
+<svg id="fxSvgOverlay" class="fixed inset-0 w-full h-full pointer-events-none z-[140]"></svg>
+<div id="dragGhostBox" class="fixed pointer-events-none z-[160] hidden" style="transform: translate(-50%, -50%) scale(var(--ui-scale, 1)); transform-origin: center center;"></div>
+
+<!-- 回合开始全屏中央激光横幅（复刻影之诗：超凡世界「您的回合 / 对手回合」） -->
+<div id="turnStartBannerOverlay" class="hidden fixed inset-0 z-[155] flex items-center justify-center pointer-events-none">
+  <div id="turnStartBannerBox" class="sv-turn-banner-band">
+    <div id="turnStartMainTitle" class="text-4xl font-black tracking-widest text-white drop-shadow">您的回合</div>
+    <div id="turnStartLaserLine" class="sv-turn-laser-blue"></div>
+    <div id="turnStartSubTitle" class="text-base font-bold text-sky-100 tracking-wider">第 <b class="text-2xl italic font-black text-white mx-1">1</b> 回合</div>
+  </div>
+</div>
+
+<!-- 顶部功能导航栏 -->
+<div id="battleNetIndicator" class="hidden" style="position:fixed;top:6px;right:180px;z-index:96;padding:4px 10px;border-radius:999px;background:rgba(2,6,23,0.9);border:1px solid #334155;font-size:11px;font-weight:800;color:#34d399;pointer-events:none;">🟢 联机正常</div>
+<div id="topNavBar" style="z-index:95;pointer-events:auto;" class="fixed top-2 left-3 flex items-center gap-2">
+  
+
+<button id="btnOpenTutorial" class="px-3 py-1.5 rounded-lg text-xs font-black bg-slate-900/95 hover:bg-slate-800 text-amber-300 border border-amber-500/50 shadow-lg transition">📘 百科</button>
+  <button id="btnToggleBgm" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900/95 hover:bg-slate-800 text-amber-300 border border-amber-500/40 shadow-lg transition" title="开启/关闭背景音乐">🎵 音乐: 开</button>
+  <button id="btnToggleFullscreen" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900/95 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 shadow-lg transition" title="全屏游玩">⛶ 全屏</button>
+  <button id="btnTopSurrenderExit" style="background:#be123c;color:#fff;border:1px solid #fda4af;" class="px-3 py-1.5 rounded-lg text-xs font-black shadow-lg transition">🏳️ 投降</button>
+  <button id="btnTopBackMenu" style="background:#1e293b;color:#fde047;border:1px solid #f59e0b;" class="hidden px-3 py-1.5 rounded-lg text-xs font-black shadow-lg transition">🏠 返回主菜单</button>
+  <!-- 隐藏的兼容节点，确保主菜单/脚本引用不报错，战斗中不可随意切换牌组或重开 -->
+  <button id="btnNavMainMenu" class="hidden"></button>
+  <button id="btnNavBattle" class="hidden"></button>
+  <button id="btnNavDeck" class="hidden"></button>
+  <button id="btnNavOnlineLobby" class="hidden"></button>
+  <button id="btnNavDesigner" class="hidden"></button>
+  <button id="btnOpenFileImport" class="hidden"></button>
+  <input id="fileImportInput" type="file" accept=".json,application/json" class="hidden">
+  <button id="btnMobileFullscreen" class="hidden"></button>
+  <button id="btnToggleMute" class="hidden"></button>
+  <select id="selectBattleMode" class="hidden">
+    <option value="pve">pve</option>
+    <option value="pvp_pass">pvp_pass</option>
+    <option value="pvp_online">pvp_online</option>
+  </select>
+  <select id="selectAiDeckArchetype" class="hidden">
+    <option value="dragon">dragon</option>
+    <option value="mech">mech</option>
+    <option value="undead">undead</option>
+    <option value="lastwords">lastwords</option>
+    <option value="selfdamage">selfdamage</option>
+    <option value="guardian">guardian</option>
+  </select>
+  <select id="selectAiDifficulty" class="hidden">
+    <option value="normal">normal</option>
+    <option value="hard">hard</option>
+    <option value="inferno">inferno</option>
+  </select>
+  <button id="btnNavCode" class="hidden"></button>
+</div>
+
+<!-- 视图 1：《影之诗：超凡世界》主战场 -->
+<div id="screenBattle" class="relative w-screen h-screen overflow-hidden flex flex-col justify-between">
+  <div class="relative w-full h-[96px] flex items-start justify-between px-6 pt-2 z-20 pointer-events-none">
+    <!-- 敌方手牌卡背位于主战者左侧，对称排布 -->
+    <div id="enemyHandBacks" class="flex items-center -space-x-1.5"></div>
+
+    <!-- 敌方主战者：严格固定于正上方居中 -->
+    <div id="enemyLeaderNode" class="pointer-events-auto fixed top-1 left-1/2 -translate-x-1/2 flex items-center justify-center z-30">
+      <div id="enemyAvatarCanvasWrap" class="w-40 h-32 rounded-b-[42px] bg-gradient-to-b from-purple-900 via-slate-900 to-slate-950 border-[3px] border-amber-400/90 shadow-[0_8px_30px_rgba(0,0,0,0.9)] flex flex-col items-center justify-center relative overflow-hidden">
+        <img id="enemyLeaderImg" class="w-full h-full object-cover" alt="敌方主战者"/>
+        <div id="uiEnemyLeaderTitle" class="absolute bottom-1 text-[11px] font-black text-purple-100 bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-purple-400/40">普通·机械主战者</div>
+      </div>
+      <div class="-ml-4 mt-6 w-14 h-16 sv-leader-hp-box flex items-center justify-center z-10">
+        <span id="uiEnemyHp" class="text-2xl font-black text-white drop-shadow pt-1">30</span>
+      </div>
+    </div>
+
+    <!-- 敌方纹章栏独立置于主战者右侧空域，彻底避开右侧牌库与能量面板 -->
+    <div id="enemyCrestBox" class="pointer-events-auto flex flex-wrap items-center gap-1.5 max-w-[calc(100vw-270px)]">
+      <span class="text-xs font-black text-amber-300 bg-slate-950/90 px-2.5 py-1 rounded border border-amber-400/50 shadow">⚔️ 敌方纹章</span>
+      <div id="enemyCrestsRow" class="sv-crest-rack"></div>
+    </div>
+
+    <div id="topRightEnemyHud" style="position:fixed;right:16px;top:10px;z-index:25;" class="pointer-events-auto flex flex-col items-end gap-1.5">
+      <div class="flex items-center gap-3 bg-slate-950/92 border border-rose-500/45 rounded-xl px-3.5 py-1.5 text-sm font-black shadow-xl">
+        <span title="敌方手牌">🃏 <b id="uiEnemyHandCnt" class="text-amber-300 text-base">4</b></span>
+        <span title="敌方墓场">🪦 <b id="uiEnemyGraveCnt" class="text-rose-300 text-base">0</b></span>
+        <span id="uiEnemyDeckCnt" class="hidden">36</span>
+        <span id="uiEnemyLWCnt" class="hidden">0</span>
+      </div>
+      <div id="enemyDynamicCountersRow" class="flex flex-wrap justify-end items-center gap-1.5 max-w-[230px]"></div>
+      <div id="enemySelfDmgHudBadge" class="hidden"></div>
+    </div>
+  </div>
+
+  
+  <canvas id="battleDecorCanvas" class="pointer-events-none fixed inset-0 w-full h-full z-[1]"></canvas>
+  <div id="battleCenterArea" class="relative flex-1 flex items-center justify-center px-6 z-10">
+    <!-- 图6 & 图7：左上悬停出牌区 -->
+    <div id="pendingLeftTopContainer" class="hidden fixed left-5 top-14 z-[65] flex flex-col gap-3 w-[300px] pointer-events-none">
+      <div id="pendingCardPreviewSlot" class="interactive-zone pointer-events-auto self-start transform scale-105 origin-top-left"></div>
+      <div id="pendingCardTextPanel" class="interactive-zone pointer-events-auto bg-slate-950/95 border-2 border-amber-400/80 rounded-xl p-3.5 shadow-2xl flex flex-col gap-2">
+        <div id="pendingPanelTitle" class="text-sm font-black text-amber-300 border-b border-amber-500/30 pb-1.5"></div>
+        <div id="pendingPanelBody" class="text-xs text-slate-100 leading-relaxed whitespace-pre-line"></div>
+        <div id="pendingStepHint" class="text-[11px] font-black text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 rounded px-2.5 py-1.5"></div>
+        <div class="text-[10px] text-slate-400">💡 左键点击卡面、文字或可选目标外的空白处即可取消打出</div>
+      </div>
+    </div>
+
+    <!-- 图7：抉择横向面板 -->
+    <div id="modeChoiceCenterPanel" class="hidden fixed inset-0 z-[60] flex flex-col items-center justify-center pointer-events-none">
+      <div class="interactive-zone pointer-events-auto mb-5 bg-slate-950/90 border-y border-amber-400/60 px-12 py-2 text-sm font-black text-amber-100 tracking-wider shadow-xl">
+        请选择1个模式。
+      </div>
+      <div id="modeChoiceBarsBox" class="flex flex-col gap-3.5 w-[520px] max-w-[90vw] ml-24"></div>
+    </div>
+
+    <!-- 图5 & 图9：放大版左侧详细面板（默认位于左中偏下偏右；若从战局记录点击则悬浮于记录右侧绝不遮挡；内含逐条排列的附加效果清单） -->
+    
+
+    <!-- 图8：左侧中偏上触发效果展示队列 -->
+    <div id="svEffectFeed" class="fixed left-4 top-24 z-[50] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- 左侧中偏下：复刻超凡世界左侧圆盘「战局详情/已使用与被破坏卡牌」按钮 -->
+    <button id="btnToggleBattleLog" class="interactive-zone pointer-events-auto fixed left-4 top-1/2 -translate-y-1/2 z-[52] w-14 h-14 rounded-full bg-gradient-to-b from-sky-900/95 via-slate-900 to-indigo-950 border-2 border-cyan-400/80 shadow-[0_0_22px_rgba(56,189,248,0.55)] hover:scale-105 transition flex flex-col items-center justify-center gap-0.5" title="查看敌我已使用卡牌与墓场被破坏卡牌">
+      <span class="text-base">📋</span>
+      <span class="text-[9px] font-black text-cyan-200 leading-none">战局记录</span>
+    </button>
+
+    <!-- 左侧观战人数与观战者列表悬浮组件 -->
+    <div id="spectatorHudWidget" class="hidden interactive-zone pointer-events-auto fixed left-4 top-[58%] z-[53] flex flex-col items-start gap-1.5">
+      <button id="btnToggleSpectatorList" class="px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-950/95 to-slate-900/95 border-2 border-cyan-400/80 shadow-[0_0_16px_rgba(34,211,238,0.4)] hover:scale-105 transition flex items-center gap-1.5 text-xs font-black text-cyan-200">
+        <span>👁️</span>
+        <span>观战 <b id="spectatorHudCount" class="text-amber-300">0</b></span>
+      </button>
+      <div id="spectatorListPopover" class="hidden w-56 bg-slate-950/95 border-2 border-cyan-400/75 rounded-2xl p-2.5 shadow-2xl backdrop-blur-md">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
+          <span class="text-xs font-black text-cyan-300">👁️ 当前观战玩家</span>
+          <button id="btnCloseSpectatorPopover" class="text-[11px] text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+        <div id="spectatorListItems" class="max-h-48 overflow-y-auto space-y-1.5 pr-0.5"></div>
+      </div>
+    </div>
+
+    <!-- 观战加入提示横幅（为被观战者展示几秒） -->
+    <div id="spectatorJoinToast" class="hidden fixed left-1/2 -translate-x-1/2 top-16 z-[95] px-5 py-2 rounded-full bg-gradient-to-r from-indigo-950/95 via-slate-900/95 to-cyan-950/95 border-2 border-cyan-400 shadow-[0_0_24px_rgba(34,211,238,0.5)] text-sm font-black text-cyan-100 pointer-events-none"></div>
+
+    <!-- 观战者顶部状态条 -->
+    <div id="spectatorModeBanner" class="hidden interactive-zone pointer-events-auto fixed left-1/2 -translate-x-1/2 top-12 z-[88] flex items-center gap-3 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-950/95 via-slate-900/95 to-purple-950/95 border-2 border-amber-400/85 shadow-[0_0_24px_rgba(251,191,36,0.4)]">
+      <span class="text-xs font-black text-amber-300 animate-pulse">👁️ 正在观战</span>
+      <span id="spectatorBannerText" class="text-xs font-bold text-white">-- VS --</span>
+      <button id="btnExitSpectate" class="px-2.5 py-0.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-black transition">🚪 退出观战</button>
+    </div>
+
+    <div id="playerSelfDmgHudBadge" class="hidden"></div>
+
+    <!-- 中央放大版 5列×2排全息六边形战道棋盘 -->
+    <div id="boardArenaBox" style="transform: scale(1.08); transform-origin: center center;" class="sv-board-frame px-8 py-4 flex flex-col gap-3.5 items-center justify-center relative">
+      <div id="enemyLanesRow" class="flex items-center gap-4"></div>
+      <div class="w-full h-[2px] bg-gradient-to-r from-transparent via-sky-400/60 to-transparent relative flex items-center justify-center my-0.5">
+        <div class="w-8 h-8 rounded-full bg-slate-950 border border-sky-400/60 flex items-center justify-center text-[10px] text-sky-300 font-bold shadow">VS</div>
+      </div>
+      <div id="playerLanesRow" class="flex items-center gap-4"></div>
+      <!-- 场外溢出消失展示槽（当召唤随从超出5格时在右侧场外依次显现并播放消散特效） -->
+      <div id="overflowBanishZone" class="fixed right-[205px] top-1/2 -translate-y-1/2 z-[80] flex flex-col gap-3 pointer-events-none"></div>
+    </div>
+
+    <!-- 右侧敌我3D立体牌库堆叠、能量点+骨头一体化HUD与大圆形回合球 -->
+    <div id="rightHudColumn" class="fixed right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 z-30">
+      <!-- 右上：敌方 3D 立体牌库堆叠 -->
+      <div id="enemyDeckStackEl" class="sv-deck-stack flex flex-col items-center justify-center mb-0.5" title="敌方牌库">
+        <div class="w-9 h-9 rounded-full border-2 border-amber-400/70 bg-sky-900/50 flex items-center justify-center text-xs font-black text-amber-300 shadow">
+          <span id="uiEnemyDeckVisualCnt">36</span>
+        </div>
+        <span class="text-[9px] font-bold text-slate-300 mt-1">敌方牌库</span>
+      </div>
+
+      <!-- 敌方能量点与骨头近处融合HUD（与我方同等大小） -->
+      <div class="w-44 bg-gradient-to-b from-slate-800/95 via-slate-900/95 to-slate-950/95 border-2 border-amber-400/85 rounded-xl px-3 py-2.5 shadow-[0_0_24px_rgba(244,63,94,0.18)] flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-black text-emerald-300">⚡ 敌方能量</span>
+          <span class="text-white font-black text-lg leading-none"><b id="uiEnemyEnergy">1</b> <small class="text-slate-400 text-xs">/<span id="uiEnemyMaxEnergy">1</span></small></span>
+        </div>
+        <div id="enemyEnergyOrbs" class="flex items-center justify-between gap-0.5"></div>
+        <div class="flex items-center justify-between border-t border-amber-500/35 pt-1.5 mt-0.5">
+          <span class="text-xs font-black text-amber-300 flex items-center gap-1">🦴 敌方骨头</span>
+          <span id="uiEnemyBones" class="text-sm font-black text-white bg-gradient-to-r from-amber-600 to-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full shadow">0</span>
+        </div>
+      </div>
+
+      <button id="btnTurnOrb" class="interactive-zone w-28 h-28 rounded-full border-4 border-amber-300 bg-gradient-to-b from-sky-400 via-blue-600 to-indigo-950 hover:from-sky-300 hover:to-blue-500 shadow-[0_0_32px_rgba(56,189,248,0.75)] flex flex-col items-center justify-center transition transform active:scale-95">
+        <span id="turnUrgentRing" class="hidden"></span>
+        <span id="turnOrbMainTxt" class="text-lg font-black text-white tracking-widest drop-shadow">结束<br>回合</span>
+        <span id="turnTimerBadge" style="margin-top:2px;padding:1px 7px;border-radius:999px;background:rgba(2,6,23,0.85);border:1px solid #38bdf8;font-size:11px;font-weight:900;color:#7dd3fc;">⏱️ 60s</span>
+      </button>
+
+      <!-- 我方能量点与骨头近处融合美化HUD -->
+      <div id="playerEnergyPanel" title="点击查看粉色额外能量说明" class="w-44 bg-gradient-to-b from-slate-800/95 via-slate-900/95 to-slate-950/95 border-2 border-amber-400/90 rounded-xl px-3 py-2.5 shadow-[0_0_24px_rgba(16,185,129,0.22)] flex flex-col gap-1.5 cursor-pointer">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-black text-emerald-300">⚡ 能量点</span>
+          <span class="text-white font-black text-lg leading-none"><b id="uiPlayerEnergy">1</b> <small class="text-slate-400 text-xs">/<span id="uiPlayerMaxEnergy">1</span></small></span>
+        </div>
+        <div id="playerEnergyOrbs" class="flex items-center justify-between gap-0.5"></div>
+
+        <div class="flex items-center justify-between border-t border-amber-500/35 pt-1.5 mt-0.5">
+          <span class="text-xs font-black text-amber-300 flex items-center gap-1">🦴 骨头储备</span>
+          <span id="uiPlayerBones" class="text-sm font-black text-white bg-gradient-to-r from-amber-600 to-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full shadow">0</span>
+        </div>
+      </div>
+
+      <div class="w-44 bg-gradient-to-r from-amber-950/95 to-slate-900/95 border border-amber-500/50 rounded-lg px-3 py-1.5 text-xs font-bold text-amber-200 flex items-center justify-between shadow">
+        <span>🔥 本回合连击</span>
+        <b id="uiPlayerCombo" class="text-amber-400 text-sm">0</b>
+      </div>
+
+      <!-- 右下：我方 3D 立体牌库堆叠（抽牌与洗牌动画的起点/终点） -->
+      <div id="playerDeckStackEl" class="sv-deck-stack flex flex-col items-center justify-center mt-0.5" title="我方牌库">
+        <div class="w-9 h-9 rounded-full border-2 border-amber-400/80 bg-sky-900/60 flex items-center justify-center text-xs font-black text-white shadow">
+          <span id="uiPlayerDeckVisualCnt">36</span>
+        </div>
+        <span class="text-[9px] font-bold text-amber-200 mt-1">我方牌库</span>
+      </div>
+    </div>
+  </div>
+
+    <!-- 左侧详细战局记录抽屉（可切换：卡牌记录 / 计数详情 / 回合战报） -->
+    <div id="battleRecordPanel" class="interactive-zone hidden fixed left-20 top-14 bottom-24 w-[430px] max-w-[92vw] z-[75] bg-slate-950/96 border-2 border-cyan-400/80 rounded-2xl p-3.5 shadow-[0_0_40px_rgba(0,0,0,0.92)] flex flex-col gap-2.5 pointer-events-auto backdrop-blur-md">
+      <div class="flex items-center justify-between border-b border-cyan-500/30 pb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📊</span>
+          <div>
+            <div class="text-sm font-black text-white">战局记录与统计中心</div>
+            <div id="battleRecordSubtitle" class="text-[10px] text-cyan-300">默认按价值从低到高排序 · 点击条目可查看卡牌</div>
+          </div>
+        </div>
+        <button id="btnCloseBattleLog" class="w-6 h-6 rounded bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-xs font-bold">✕</button>
+      </div>
+      <div class="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl">
+        <button id="tabLogViewCards" class="flex-1 py-1.5 rounded-lg text-xs font-black bg-amber-400 text-slate-950 transition">📜 卡牌记录</button>
+        <button id="tabLogViewStats" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">📊 计数详情</button>
+        <button id="tabLogViewTurns" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">📖 回合战报</button>
+      </div>
+      <div id="battleRecordCardsView" class="flex-1 flex flex-col gap-2 overflow-hidden">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex flex-1 items-center gap-1 bg-slate-900/80 p-1 rounded-xl">
+            <button id="tabLogPlayer" class="flex-1 py-1 rounded-lg text-xs font-black bg-cyan-500 text-slate-950 transition">🛡️ 我方</button>
+            <button id="tabLogEnemy" class="flex-1 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">⚔️ 敌方</button>
+          </div>
+          <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl shrink-0">
+            <button id="btnLogSortValue" class="px-2 py-1 rounded-lg text-[11px] font-black bg-emerald-500 text-slate-950 transition" title="按卡牌综合价值从低到高排序">💎 价值↑</button>
+            <button id="btnLogSortEnergy" class="px-2 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 hover:text-white transition" title="按能量费用从低到高排序">⚡ 能量↑</button>
+          </div>
+        </div>
+        <div class="flex-1 grid grid-cols-2 gap-2.5 overflow-hidden">
+          <div class="flex flex-col bg-slate-900/80 border border-slate-800 rounded-xl p-2 overflow-hidden">
+            <div class="text-[11px] font-black text-emerald-300 border-b border-slate-800 pb-1 mb-1.5 flex items-center justify-between">
+              <span id="logPlayedSortTitle">✨ 已使用 (价值↑)</span>
+              <span id="logPlayedTotalBadge" class="text-[10px] text-slate-400">0张</span>
+            </div>
+            <div id="logPlayedList" class="flex-1 overflow-y-auto space-y-1 pr-0.5"></div>
+          </div>
+          <div class="flex flex-col bg-slate-900/80 border border-slate-800 rounded-xl p-2 overflow-hidden">
+            <div class="text-[11px] font-black text-rose-300 border-b border-slate-800 pb-1 mb-1.5 flex items-center justify-between">
+              <span id="logDestroyedSortTitle">🪦 墓场破坏</span>
+              <span id="logDestroyedTotalBadge" class="text-[10px] text-slate-400">0张</span>
+            </div>
+            <div id="logDestroyedList" class="flex-1 overflow-y-auto space-y-1 pr-0.5"></div>
+          </div>
+        </div>
+      </div>
+      <div id="battleRecordStatsView" class="hidden flex-1 overflow-y-auto space-y-2 pr-0.5"></div>
+      <div id="battleRecordTurnsView" class="hidden flex-1 overflow-y-auto space-y-2.5 pr-1"></div>
+    </div>
+
+
+  <!-- 底部栏 -->
+  <div class="relative w-full h-[172px] flex items-end justify-center px-6 pb-2 z-30 pointer-events-none">
+    <div id="bottomLeftPlayerHud" style="left: 24px; bottom: 64px;" class="pointer-events-auto fixed flex flex-col gap-1.5 z-40">
+      <!-- 我方纹章栏（左下角显示，最多同时存在5个） -->
+      <div class="flex items-center gap-1.5 mb-0.5">
+        <span class="text-[10px] font-black text-amber-300 bg-slate-950/90 px-2 py-0.5 rounded border border-amber-400/50 shadow">🛡️ 我方纹章</span>
+        <div id="playerCrestsRow" class="sv-crest-rack"></div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="uiMechDiscountTag" class="hidden px-2.5 py-1 rounded-full bg-emerald-950 border border-emerald-400 text-[11px] font-bold text-emerald-300">
+          🐞 下张机械-1费
+        </div>
+        <button id="btnToggleHandCollapse" class="interactive-zone px-2.5 py-1 rounded-full bg-slate-900/95 hover:bg-slate-800 border border-sky-400/60 text-[11px] font-bold text-sky-200 shadow">
+          🔽 点击空地可收起手牌展示主战者
+        </button>
+      </div>
+      <div id="playerDynamicCountersRow" class="flex flex-wrap items-center gap-1.5 max-w-[230px]"></div>
+      <div class="bg-slate-950/92 border border-cyan-500/45 rounded-xl px-3.5 py-1.5 flex items-center gap-3 text-sm font-black shadow-xl w-fit">
+        <span title="我方手牌">🃏 <b id="uiPlayerHandCnt" class="text-amber-300 text-base">4</b></span>
+        <span title="我方墓场">🪦 <b id="uiPlayerGraveCnt" class="text-rose-300 text-base">0</b></span>
+        <span id="uiPlayerDeckCnt" class="hidden">36</span>
+        <span id="uiPlayerLWCnt" class="hidden">0</span>
+      </div>
+    </div>
+
+    <!-- 我方主战者：大幅放大，手牌收起时完整华丽呈现 -->
+    <div id="playerLeaderNode" style="bottom:58px;cursor:pointer;" class="interactive-zone pointer-events-auto fixed left-1/2 -translate-x-1/2 flex items-center z-[36] transition-all duration-300">
+      <div style="display:none !important;" aria-hidden="true"></div>
+      <div class="w-44 h-32 rounded-t-[48px] bg-gradient-to-t from-sky-950 via-slate-900 to-indigo-900 border-[3px] border-amber-300 flex flex-col items-center justify-center shadow-[0_-8px_30px_rgba(0,0,0,0.9)] relative overflow-hidden">
+        <img id="playerLeaderImg" class="w-full h-full object-cover" alt="我方主战者"/>
+        <div id="uiPlayerLeaderTitle" class="absolute bottom-1 text-[11px] font-black text-sky-100 bg-slate-950/90 px-3 py-0.5 rounded-full border border-amber-400/60">😊 点击发表情 · 我方主战者</div>
+      </div>
+      <div class="-ml-3 w-14 h-16 sv-leader-hp-box flex items-center justify-center z-10">
+        <span id="uiPlayerHp" class="text-2xl font-black text-white drop-shadow pt-1">30</span>
+      </div>
+    </div>
+
+    <!-- 右下角：先后手与当前回合数独立放大HUD -->
+    <div id="bottomRightTurnInfoHud" class="fixed right-5 bottom-5 z-[45] flex items-center gap-3 pointer-events-none">
+      <div id="playerOrderSideWrap" class="flex items-center">
+        <div id="uiTurnOrderBadge" class="px-4 py-2 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 border-2 border-amber-200 text-sm md:text-base font-black text-white shadow-[0_4px_18px_rgba(14,165,233,0.45)] whitespace-nowrap">🎲 我方先手</div>
+      </div>
+      <div id="playerTurnSideWrap" class="px-4 py-2 rounded-full bg-gradient-to-b from-slate-700 to-slate-950 border-2 border-amber-300 flex items-center justify-center shadow-[0_4px_18px_rgba(0,0,0,0.75)] whitespace-nowrap" title="当前回合">
+        <span id="uiTurnNum" class="text-sm md:text-base font-black text-amber-300 tracking-wider whitespace-nowrap">第1回合</span>
+      </div>
+    </div>
+
+    <div id="playerHandZone" class="interactive-zone pointer-events-auto relative flex items-end justify-center gap-2.5 px-8 pb-1 min-h-[216px] max-w-[1260px] z-30"></div>
+
+    <div id="bottomRightActionHud" class="hidden">
+      <select id="quickDeckSelect" class="bg-slate-900/95 border border-amber-500/50 rounded-lg px-2.5 py-1.5 text-xs font-bold text-amber-200"></select>
+      <button id="btnRestartMatch" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-black text-white shadow-lg">🔄 重新开局</button>
+      <button id="btnPvpSurrender" class="hidden px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 border border-rose-300 text-xs font-black text-white shadow-lg">🏳️ 投降认输</button>
+    </div>
+  </div>
+</div>
+
+<!-- 浮层 1：复刻图1/图2/图3 上下双框拖拽换牌阶段 (Mulligan) -->
+<div id="mulliganModal" class="hidden fixed inset-0 bg-slate-950/82 backdrop-blur-sm z-[110] flex items-center justify-center p-6">
+  <div class="flex items-center gap-6 max-w-6xl w-full justify-center">
+    <div class="flex flex-col gap-3 w-[820px]">
+      <div id="mulliganTopBox" class="bg-slate-900/90 border-2 border-amber-400/70 rounded-xl p-4 shadow-2xl flex flex-col items-center">
+        <div class="text-sm font-black text-cyan-300 tracking-widest mb-3">交换</div>
+        <div id="mulliganSwapSlots" class="grid grid-cols-4 gap-5 w-full justify-items-center min-h-[192px]"></div>
+      </div>
+
+      <div class="bg-gradient-to-r from-transparent via-slate-900/95 to-transparent border-y border-sky-400/40 py-1.5 text-center text-xs md:text-sm font-bold text-slate-100">
+        请将想要交换的卡牌拖动（或点击）至上方框内。
+      </div>
+
+      <div id="mulliganBottomBox" class="bg-slate-900/90 border-2 border-amber-400/70 rounded-xl p-4 shadow-2xl flex flex-col items-center">
+        <div id="mulliganKeepSlots" class="grid grid-cols-4 gap-5 w-full justify-items-center min-h-[192px]"></div>
+        <div class="text-sm font-black text-cyan-300 tracking-widest mt-3">保留</div>
+      </div>
+    </div>
+
+    <div class="flex flex-col items-center justify-between h-[470px] w-48 shrink-0">
+      <div class="w-full bg-slate-900/95 border border-amber-400/60 rounded-xl p-3 text-center shadow-lg">
+        <div class="text-amber-300 text-sm mb-1">🪽</div>
+        <div class="text-xs font-bold text-slate-200 leading-relaxed">对手<br>正在选择卡牌。</div>
+        <div id="mulliganTimerBadge" style="margin-top:6px;padding:3px 10px;border-radius:999px;background:#020617;border:1.5px solid #38bdf8;font-size:13px;font-weight:900;color:#fde047;">⏱️ 换牌倒计时：30s</div>
+      </div>
+
+      <button id="btnConfirmMulligan" class="w-32 h-32 rounded-full border-4 border-amber-300 bg-gradient-to-b from-sky-400 via-blue-600 to-indigo-950 hover:from-sky-300 hover:to-blue-500 shadow-[0_0_32px_rgba(56,189,248,0.8)] flex items-center justify-center text-xl font-black text-white tracking-widest transition transform hover:scale-105 active:scale-95">
+        决定
+      </button>
+
+      <div class="w-full bg-gradient-to-b from-sky-950/95 via-slate-900 to-indigo-950 border-2 border-amber-300 rounded-2xl p-3.5 text-center shadow-[0_0_28px_rgba(56,189,248,0.65)]">
+        <div class="text-amber-300 text-base mb-0.5">🎲 开局先后手判定</div>
+        <div class="text-[11px] text-sky-200 font-bold">本局您的行动顺序</div>
+        <div id="mulliganOrderLabel" class="text-2xl font-black text-amber-300 tracking-widest mt-1 drop-shadow">先手 · FIRST</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 浮层 2：手牌选择 & 多选【融合】弹窗（左键点击除可选卡牌和确认按钮外的任意区域均可立即取消） -->
+<div id="handPickModal" class="hidden fixed inset-0 bg-slate-950/82 backdrop-blur-sm z-[980] flex items-center justify-center p-6 cursor-pointer">
+  <div class="flex flex-col md:flex-row items-center gap-6 max-w-5xl w-full pointer-events-none">
+    <div class="w-72 bg-slate-950/95 border-2 border-amber-400/80 rounded-xl p-4 shadow-2xl shrink-0 pointer-events-none">
+      <div id="handPickSourceTitle" class="text-base font-black text-amber-300 border-b border-amber-500/30 pb-2 mb-2"></div>
+      <div id="handPickSourceDesc" class="text-xs text-slate-200 leading-relaxed whitespace-pre-line"></div>
+      <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] text-emerald-300 font-bold">
+        💡 左键点击卡牌以外的任意位置即可取消返回
+      </div>
+    </div>
+    <div class="flex-1 flex flex-col items-center gap-4 pointer-events-none">
+      <div id="handPickPromptTitle" class="text-sm font-black text-amber-200 bg-slate-900/95 border border-amber-400/60 px-6 py-2 rounded-full shadow pointer-events-none"></div>
+      <div id="handPickCardsGrid" class="flex flex-wrap items-center justify-center gap-4 pointer-events-none"></div>
+      <div class="flex items-center gap-3 pointer-events-auto">
+        <button id="btnConfirmMultiFuse" class="hidden interactive-zone px-8 py-2.5 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-sm shadow-xl border border-purple-300">
+          🧬 确认融合所选手牌
+        </button>
+        <button id="btnCancelHandPick" class="interactive-zone px-6 py-2.5 rounded-full bg-slate-800 hover:bg-rose-700 text-slate-200 hover:text-white font-black text-sm shadow-xl border border-slate-600">
+          ✕ 取消
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- 浮层 3：商品级华丽胜负结算大弹窗 -->
+<div id="victoryDefeatModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[190] flex flex-col items-center justify-center p-6 gap-5 pointer-events-auto">
+  <div class="interactive-zone pointer-events-auto bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-4 border-amber-400 rounded-3xl px-12 py-8 shadow-[0_0_60px_rgba(251,191,36,0.5)] flex flex-col items-center gap-4 max-w-lg w-full text-center">
+    <div id="vicBadgeIcon" class="text-6xl drop-shadow">🏆</div>
+    <h2 id="vicTitleTxt" class="text-3xl font-black tracking-widest text-amber-300">VICTORY · 对战胜利</h2>
+    <p id="vicSubTxt" class="text-sm text-slate-300 leading-relaxed">你成功击败了对手的主战者！</p>
+    <div class="flex items-center gap-4 mt-3 pointer-events-auto">
+      <button id="btnVicPlayAgain" class="interactive-zone pointer-events-auto px-7 py-2.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-sm shadow-xl cursor-pointer">🔄 再战一局</button>
+      <button id="btnVicGoDeck" class="interactive-zone pointer-events-auto px-6 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-sm cursor-pointer">🛠️ 调整卡组</button>
+    </div>
+  </div>
+</div>
+
+<!-- 浮层 4：玩家对战 (PvP) 隐私防窥交接屏 -->
+<div id="pvpHandoverModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-lg z-[185] flex flex-col items-center justify-center p-6 pointer-events-auto">
+  <div class="interactive-zone pointer-events-auto bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-950 border-3 border-cyan-400 rounded-3xl px-10 py-8 shadow-[0_0_50px_rgba(56,189,248,0.5)] flex flex-col items-center gap-4 max-w-md w-full text-center">
+    <div class="text-5xl">👥</div>
+    <h3 id="pvpHandoverTitle" class="text-2xl font-black text-cyan-300 tracking-wider">轮到【玩家 2】行动</h3>
+    <p id="pvpHandoverDesc" class="text-xs text-slate-300 leading-relaxed">为保护双方手牌隐私，已自动隐藏牌面。请将设备交给当前回合玩家后点击下方按钮展开手牌。</p>
+    <button id="btnConfirmPvpHandover" class="interactive-zone pointer-events-auto mt-2 px-8 py-3 rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-sm shadow-xl cursor-pointer">🔓 我已就位 · 展开手牌开始回合</button>
+  </div>
+</div>
+
+<!-- 浮层 5：移动端竖屏提示横屏游玩引导层 -->
+<div id="mobilePortraitOverlay" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[250] flex flex-col items-center justify-center p-6 text-center pointer-events-auto">
+  <div class="bg-slate-900 border-2 border-amber-400 rounded-3xl p-6 max-w-sm w-full flex flex-col items-center gap-4 shadow-2xl">
+    <div class="text-5xl animate-bounce">📱🔄</div>
+    <div class="text-lg font-black text-amber-300">建议横屏游玩《冥刻之诗》</div>
+    <p class="text-xs text-slate-300 leading-relaxed">检测到您当前处于手机竖屏模式。为获得完整的 5 战道视野与零偏差拖拽体验，请将手机旋转至<strong>横屏</strong>或点击下方按钮一键锁定横屏全屏！</p>
+    <div class="flex flex-col gap-2.5 w-full">
+      <button id="btnForceLandscapeFullscreen" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-xs shadow-lg">📲 一键全屏并锁定横屏</button>
+      <button id="btnDismissPortraitOverlay" class="w-full py-2 rounded-xl bg-slate-800 border border-slate-600 text-slate-300 font-bold text-xs">继续在当前屏幕游玩</button>
+    </div>
+  </div>
+</div>
+
+<!-- 视图 2：支持左右双向点击查看详情的卡组编辑器 (40张) -->
+<div id="screenDeck" class="hidden w-screen h-screen pt-12 pb-3 px-4 flex gap-3.5 overflow-hidden bg-slate-950/95">
+  <div class="flex-1 flex flex-col bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3.5 overflow-hidden">
+    <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-black text-amber-300">🃏 卡牌图鉴</span>
+        <label class="flex items-center gap-1 text-xs text-slate-300 cursor-pointer">
+          <input id="chkDeckShowTokens" type="checkbox" class="rounded"> 衍生物
+        </label>
+        <span id="deckGalleryCountBadge" class="text-[11px] font-black px-2 py-0.5 rounded-md bg-slate-800 text-cyan-300 border border-slate-700">-- 张</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="selDeckSort" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-amber-200">
+          <option value="energy_asc">⚡ 按能量从低到高</option>
+          <option value="energy_desc">⚡ 按能量从高到低</option>
+          <option value="value_asc" selected>⚖️ 按价值从低到高</option>
+          <option value="value_desc">⚖️ 按价值从高到低</option>
+          <option value="atk_desc">⚔️ 攻击力从高到低</option>
+          <option value="hp_desc">❤️ 生命值从高到低</option>
+          <option value="rarity_desc">💎 稀有度从高到低</option>
+          <option value="name_asc">🔤 名称排序</option>
+        </select>
+        <button id="btnToggleDeckFilterPanel" style="background:#1e293b;border:1.5px solid #38bdf8;color:#7dd3fc;" class="px-3 py-1 rounded-lg text-xs font-black shadow transition">🎚️ 精细筛选 <span id="deckAdvFilterBadge" class="hidden ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px]">0</span></button>
+        <input id="inputDeckSearch" type="text" placeholder="搜索卡名/种族/词条..." class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white w-44">
+      </div>
+    </div>
+    <div id="importStatusToast" class="hidden my-1.5 px-3 py-1 rounded bg-emerald-950 border border-emerald-500/60 text-xs font-bold text-emerald-300"></div>
+    <div class="text-[11px] text-slate-400 my-1">💡 左键单击查看详情；【右键点击卡池卡牌】快速加入卡组，【右键点击右侧卡组卡牌】快速移除；卡组中卡牌【向右拖动】增加1张同名卡，【向左拖出】移除1张！</div>
+    <!-- 卡牌精细筛选二级面板 -->
+    <div id="deckAdvFilterPanel" class="hidden bg-slate-950/95 border border-cyan-500/50 rounded-xl p-3 mb-2 flex flex-col gap-2 max-h-[270px] overflow-y-auto shrink-0 shadow-xl">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-xs font-black text-amber-300 w-16 shrink-0">⚖️ 价值</span>
+        <div id="advFilterCostRow" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-xs font-black text-emerald-300 w-16 shrink-0">💠 体系</span>
+        <div id="advFilterSystemRow" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-xs font-black text-sky-300 w-16 shrink-0">🐉 种族</span>
+        <div id="advFilterRaceRow" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-xs font-black text-cyan-300 w-16 shrink-0">🃏 类型</span>
+        <div id="advFilterTypeRow" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-xs font-black text-purple-300 w-16 shrink-0">💎 稀有</span>
+        <div id="advFilterRarityRow" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="flex flex-wrap items-start justify-between gap-2 pt-1.5 border-t border-slate-800">
+        <div class="flex flex-wrap items-center gap-1.5 flex-1">
+          <span class="text-xs font-black text-rose-300 w-16 shrink-0">🩸 词条(多选)</span>
+          <div id="advFilterSpecRow" class="flex flex-wrap gap-1.5 flex-1"></div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <button id="btnResetAdvFilter" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-600">🔄 重置</button>
+          <button id="btnCloseAdvFilter" class="px-3 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-black text-white">✓ 收起</button>
+        </div>
+      </div>
+    </div>
+    <div id="deckGalleryGrid" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 p-2"></div>
+  </div>
+
+  <!-- 右栏：当前卡组列表（支持鼠标拖拽卡牌进入加入、拖拽出列表移除，临时上限50张，40张出战） -->
+  <div id="deckRightPanel" class="w-84 bg-slate-900/95 border-2 border-slate-700/80 rounded-2xl p-3.5 flex flex-col gap-2 shrink-0 shadow-2xl transition-colors">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-black text-amber-300 uppercase">当前出战/编辑牌组 (右键移除 / 向右拖+1 / 向左拖-1)</span>
+      <span id="deckCountFraction" class="text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">40 / 40</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <select id="selectEditingDeck" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-amber-200"></select>
+      <button id="btnNewCustomDeck" class="px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-black text-white shrink-0" title="新建一套属于你自己的卡组">➕ 新建卡组</button>
+      <button id="btnDeleteCustomDeck" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-700 text-xs font-bold text-slate-300 hover:text-white shrink-0" title="删除当前自建卡组">🗑️</button>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <input id="inputDeckCustomName" type="text" placeholder="自定义卡组名称..." class="flex-1 bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-lg px-2.5 py-1 text-xs font-bold text-white" />
+      <button id="btnSaveDeckName" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/60 text-amber-200 text-xs font-black shrink-0">✏️ 改名</button>
+    </div>
+    <div class="flex gap-1.5">
+      <button id="btnDeckAutoFill" class="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-black text-white">✨ 自动补满40张</button>
+      <button id="btnDeckClear" class="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-xs font-bold text-white">清空</button>
+    </div>
+    <div class="flex gap-1.5">
+      <button id="btnCopyDeckCode" class="flex-1 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-black text-white shadow">📋 复制牌组码</button>
+      <button id="btnPasteDeckCode" class="flex-1 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-black text-white shadow">📥 导入牌组码</button>
+    </div>
+    <div id="deckEditorList" class="flex-1 overflow-y-auto space-y-1 pr-1"></div>
+    <div class="flex gap-2">
+      <button id="btnDeckSaveOnly" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs shadow-lg">💾 保存卡组</button>
+      <button id="btnDeckBackPrev" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs shadow-lg">🏠 保存并返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🔍 卡组编辑器大尺寸卡牌详情弹窗（左侧放大卡面 + 右侧详情面板） -->
+<div id="deckCardDetailModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[215] flex items-center justify-center p-4">
+  <div id="deckCardDetailDialog" class="bg-slate-900/98 border-2 border-amber-400/85 rounded-3xl shadow-[0_0_60px_rgba(0,0,0,0.95)] p-5 flex gap-6 max-w-4xl w-full max-h-[88dvh] overflow-hidden">
+    <div id="deckDetailLeftArtPane" class="w-[290px] shrink-0 bg-slate-950/85 border border-slate-800 rounded-2xl flex items-center justify-center p-6 overflow-hidden">
+      <div id="deckInspectedCardSlot" class="deck-detail-enlarged-card"></div>
+    </div>
+    <div class="flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div id="deckInspectedTitle" class="text-lg font-black text-amber-300 truncate">🔍 卡牌详情</div>
+        <button id="btnCloseDeckCardModal" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-sm font-black transition">✕</button>
+      </div>
+      <div id="deckInspectedMeta" class="text-sm font-black text-sky-300 bg-slate-950/90 rounded-xl px-3.5 py-2.5 border border-slate-800"></div>
+      <div id="deckInspectedEffect" class="text-sm text-slate-100 leading-relaxed whitespace-pre-line bg-slate-950/80 rounded-xl p-4 border border-slate-800 flex-1 overflow-y-auto"></div>
+      <div class="flex gap-2 pt-0.5">
+        <button id="btnDeckSetCardAvatar" type="button" class="flex-1 py-2 rounded-xl bg-sky-900/90 hover:bg-sky-800 border border-sky-400/70 text-xs font-black text-sky-100 shadow transition cursor-pointer">🖼️ 设为游戏头像</button>
+        <button id="btnDeckSetCardLeader" type="button" class="flex-1 py-2 rounded-xl bg-amber-900/90 hover:bg-amber-800 border border-amber-400/70 text-xs font-black text-amber-100 shadow transition cursor-pointer">👑 设为主战者形象</button>
+      </div>
+      <div class="flex gap-2.5 pt-1">
+        <button id="btnDeckDetailAdd" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-black text-white shadow-lg transition">➕ 加入1张到卡组</button>
+        <button id="btnDeckDetailRemove" class="px-5 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-sm font-bold text-white shadow-lg transition">➖ 移出1张</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 二级菜单浮层：📘 基础游戏教程与规则百科 -->
+<div id="tutorialModal" class="hidden fixed inset-0 bg-slate-950/88 backdrop-blur-md z-[210] flex items-center justify-center p-4">
+  <div class="interactive-zone bg-slate-900 border-2 border-amber-400/85 rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3 bg-slate-950 border-b border-amber-500/30 shrink-0">
+      <div class="flex items-center gap-2.5">
+        <span class="text-xl">📘</span>
+        <div>
+          <h2 class="text-base font-black text-amber-300">《冥刻之诗》规则百科与设计器指南</h2>
+        </div>
+      </div>
+      <button id="btnCloseTutorial" class="px-3.5 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-xs font-black">✕ 关闭</button>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden">
+      <div id="tutSidebar" class="w-48 bg-slate-950/90 border-r border-slate-800 p-3 flex flex-col gap-2 shrink-0 overflow-y-auto">
+        <button data-tut-tab="rules" class="tut-tab-btn text-left px-3 py-2.5 rounded-xl text-xs font-black bg-amber-500 text-slate-950">1. 胜负与战道</button>
+        <button data-tut-tab="resources" class="tut-tab-btn text-left px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-slate-300 hover:bg-slate-800">2. 三大资源体系</button>
+        <button data-tut-tab="controls" class="tut-tab-btn text-left px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-slate-300 hover:bg-slate-800">3. 操作与融合/启动</button>
+        <button data-tut-tab="keywords" class="tut-tab-btn text-left px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-slate-300 hover:bg-slate-800">4. 全词条速查</button>
+        <button data-tut-tab="designer" class="tut-tab-btn text-left px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-slate-300 hover:bg-slate-800">5. 设计器与投稿</button>
+      </div>
+
+      <div id="tutBodyScroll" class="flex-1 p-5 overflow-y-auto text-sm text-slate-200 leading-relaxed space-y-4">
+        <div id="tutTab_rules" class="tut-pane space-y-3">
+          <h3 class="text-base font-black text-amber-300">⚔️ 胜负、先后手与五战道自动战斗</h3>
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
+            <p>• <b>胜负条件</b>：双方主战者初始 <b>30 点生命</b>（困难 AI 40 血、炼狱 AI 50 血），归零或牌库抽干时抓牌直接判负。</p>
+            <p>• <b>先后手与回合显示</b>：右下角实时显示当前回合数与先手/后手标识。后手玩家在第 1 回合额外多抽 1 张牌，并享有<b>粉色额外能量点</b>补偿。</p>
+            <p>• <b>攻击顺序</b>：点击「结束回合」后自动战斗。我方按 <b>1→5 号位（左→右）</b> 顺序攻击正前方；敌方按 <b>5→1 号位（右→左）</b> 攻击。</p>
+            <p>• <b>无反伤规则</b>：主动攻击敌方随从<b>不吃反伤</b>（除非对方有【荆棘】）；正前方无随从时直接攻击敌方主战者。</p>
+            <p>• <b>回合结束新登场</b>：回合结束阶段由效果或孵化登场的随从，当回合可立即发起攻击。</p>
+          </div>
+        </div>
+
+        <div id="tutTab_resources" class="tut-pane hidden space-y-3">
+          <h3 class="text-base font-black text-emerald-300">⚡💖🩸🦴 三大费用体系与额外能量</h3>
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
+            <p>• <b class="text-emerald-300">能量点</b>：开局 1 点，每回合上限 +1（上限 10 点）并自动回满，用于常规出牌、爆能强化、结晶、激奏与【启动】。</p>
+            <p>• <b class="text-pink-300">额外能量点（后手专属）</b>：后手玩家在第 <b>1、4、6 回合</b>自动获得 1 点粉色额外能量，可用于<b>常规出牌、爆能强化与【启动】</b>；若当回合未使用可保留至下一次刷新回合前，临过期且可花出时会弹窗提醒。</p>
+            <p>• <b class="text-rose-300">祭品（血滴图标）</b>：拖入战场后先点选己方场上随从作为祭品，再点击空位放置。被献祭的随从同样触发【谢幕曲】并提供 1 骨头。</p>
+            <p>• <b class="text-amber-300">骨头（六角骨晶）</b>：己方随从被破坏或献祭、或使用法术时 +1，用于打出带有骨头消耗的卡牌。<b>无能量卡牌</b>会自动将献祭/骨头大图标上移至左上角主位显示。</p>
+            <p>• <b class="text-amber-200">卡牌价值</b>：按 <b>能量×1 + 祭品×1.5 + 骨头×0.5</b> 自动折算。部分破坏、变身、瞬念召唤与检索效果会直接比较卡牌价值。</p>
+            <p>• <b class="text-sky-300">招募 / 亡者召还</b>：按<b>【价值X】</b>可召唤任意混合费用随从；若指定单一费用体系（如能量X），则仅召唤该单一费用体系的随从。</p>
+          </div>
+        </div>
+
+        <div id="tutTab_controls" class="tut-pane hidden space-y-3">
+          <h3 class="text-base font-black text-sky-300">🖱️ 操作手势、选中提示与联机规则</h3>
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
+            <p>• <b>悬停放大与点选详情</b>：鼠标移至手牌即清晰放大预览；轻点手牌或战场卡牌会在卡面中心亮起<b>动态选中光环</b>并弹出右侧详情面板（关闭详情面板时自动消失）。</p>
+            <p>• <b>手牌实时状态</b>：手牌身材受增益/削减时会实时以<b>绿色/红色</b>数字显示；获得附加效果或额外词条时右上角会出现金色 <b>!</b> 标记，点击即可查看全部附加效果。</p>
+            <p>• <b>拖拽出牌</b>：按住手牌拖向战场即可打出（手牌收起时也可直接拖出）。有目标或献祭需求的卡牌均为<b>「先选目标/祭品 → 再选放置空位」</b>。</p>
+            <p>• <b>🧬 融合 / ⚡ 启动</b>：点开手牌详情点击「融合」勾选素材确认；己方战场卡牌点开详情可发动【启动】（每回合 1 次，支持消耗额外能量点）。</p>
+            <p>• <b>卡组编辑器与牌组码</b>：40 张卡组方可出战（编辑时可暂存至 50 张），支持一键复制/导入 <code>CF1:</code> 牌组码分享卡组。</p>
+            <p>• <b>🌐 联机限时</b>：仅联机 PvP 限时（开局换牌 30 秒、每回合 60 秒）；单机挑战 AI 不限时。</p>
+          </div>
+        </div>
+
+        <div id="tutTab_keywords" class="tut-pane hidden space-y-3">
+          <h3 class="text-base font-black text-purple-300">🏷️ 全词条与召唤顺序</h3>
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+            <p>• <b>守护</b>：自动位移至正前方空位格挡攻击（无法格挡【飞行】，除非同时拥有【防空】）。</p>
+            <p>• <b>飞行 / 防空</b>：【飞行】跳过普通随从直击主战者；【防空】可拦截【飞行】。</p>
+            <p>• <b>屏障 / 灵气 / 潜行</b>：抵挡 1 次伤害 / 免疫敌方指向性能力 / 不可被选中与格挡（攻击或随机 AOE 除外）。</p>
+            <p>• <b>毁灭 / 荆棘 / 虹吸</b>：伤害致命 / 受击时反伤攻击者 / 造成伤害等量回血。</p>
+            <p>• <b>多重 / 两侧 / 三侧 / 全体攻击</b>：单回合攻击多次，或同时攻击相邻/全列目标。</p>
+            <p>• <b>结晶 / 激奏 / 爆能强化</b>：能量不足原费但满足结晶/激奏费时，分别以护符或法术形态打出；能量达到爆能强化值时自动消耗强化费触发强力效果（均支持额外能量点）。</p>
+            <p>• <b>倒计时 / 变身 / 消失</b>：每回合开始倒计时 -1，归零触发效果；随从变身视为新随从进场；【消失】直接移出对战，不入墓地且不触发谢幕曲。</p>
+            <p>• <b>瞬念召唤 / 主战者纹章</b>：满足条件时自动从牌库免费登场；纹章显示于主战者下方，持续提供全局被动效果。</p>
+            <p>• <b>召唤顺序</b>：从触发者右侧第 1 空位顺延，右侧满后从左侧空位补齐；超出 5 格则在场外消散移除。</p>
+          </div>
+        </div>
+
+        <div id="tutTab_designer" class="tut-pane hidden space-y-3">
+          <h3 class="text-base font-black text-fuchsia-300">🃏 卡牌设计器 v2.3 与投稿说明</h3>
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+            <p>• <b>独立创作沙盒</b>：从主菜单进入「🃏 设计器」，列表初始为空（仅保存你自己设计的卡牌），可自由设置费用、攻血、词条、结晶/激奏、抉择分支与招募/亡者召还。</p>
+            <p>• <b>费用价值模型</b>：设计器顶部实时按 <b>能量×1 + 祭品×1.5 + 骨头×0.5</b> 计算卡牌折算价值，帮助你把握强度平衡。</p>
+            <p>• <b>导出投稿给作者</b>：为保证所有玩家联机卡池一致，设计器内的卡牌<b>不会直接导入游戏对战</b>。设计完成后请点击导出 JSON 保存文件并发送给游戏作者，审核后即可正式加入游戏卡池！</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 视图 3：原版卡牌构筑对战 · 卡牌设计器 v1.9 (完整还原 v1.9 动态词条列表 + 抉择 + 招募/亡者召还 + 费用评估 + JSON 导入导出) -->
+<div id="screenDesigner" class="hidden fixed inset-0 z-[155] flex flex-col bg-[#060b18]">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:linear-gradient(90deg,#0f172a,#1e293b);border-bottom:2px solid rgba(251,191,36,0.5);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="btnDesignerBackToMenu" type="button" style="padding:6px 12px;border-radius:8px;background:#1e293b;color:#fde68a;border:1px solid rgba(251,191,36,0.5);font-size:12px;font-weight:800;cursor:pointer;">◀ 返回主菜单</button>
+      <span style="font-size:14px;font-weight:900;color:#fbbf24;">🛠️ 卡牌设计器 v2.3（独立导出沙盒）</span>
+    </div>
+    <span style="font-size:11px;color:#94a3b8;">仅用于设计并导出 JSON，不影响当前对战卡组</span>
+  </div>
+  <iframe id="designerV23Frame" title="卡牌设计器" style="width:100%;flex:1;border:none;background:#060b18;"></iframe>
+</div>
+
+<div id="screenCode" class="hidden w-screen h-screen pt-12 pb-4 px-6 flex flex-col bg-slate-950/95">
+  <div class="flex-1 bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3 overflow-hidden">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-black text-emerald-300">💻 Godot 4 工程完整中文注释源码</h2>
+        <p class="text-xs text-slate-400">包含通用规范用语解析器 `EffectScriptParser.gd`、对战引擎 `BattleEngine.gd` 与完整 UI 脚本。</p>
+      </div>
+      <div class="flex gap-2">
+        <button data-gd="EffectScriptParser.gd" class="gd-tab-btn px-3 py-1.5 rounded-lg text-xs font-black bg-emerald-500 text-slate-950">EffectScriptParser.gd</button>
+        <button data-gd="BattleEngine.gd" class="gd-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">BattleEngine.gd</button>
+        <button data-gd="DeckBuilderView.gd" class="gd-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">DeckBuilderView.gd</button>
+        <button data-gd="BattleView.gd" class="gd-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">BattleView.gd</button>
+      </div>
+    </div>
+    <pre id="gdSourcePre" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 overflow-auto text-xs font-mono text-slate-200 leading-relaxed"></pre>
+  </div>
+</div>
+
+<!-- 联机对战顶部实时状态条 -->
+<div id="onlineTurnPill" class="hidden fixed top-12 left-1/2 -translate-x-1/2 z-[94] flex items-center gap-3 px-4 py-1.5 rounded-full bg-slate-950/92 border border-cyan-400/70 shadow-[0_0_20px_rgba(34,211,238,0.35)] backdrop-blur-md">
+  <span id="onlineTurnDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+  <span id="onlineTurnStatusText" class="text-xs font-black text-cyan-100 tracking-wide">🌐 联机房间：-- | 等待中</span>
+  <button id="btnOnlineLeaveBattle" class="px-2.5 py-0.5 rounded-full bg-rose-600/90 hover:bg-rose-500 text-white text-[11px] font-black border border-rose-300/60 transition">🏳️ 认输/退出联机</button>
+</div>
+
+<!-- 等待对手开局换牌遮罩 -->
+<div id="onlineWaitOverlay" class="hidden fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[148] flex flex-col items-center justify-center gap-4">
+  <div class="w-16 h-16 rounded-full border-4 border-cyan-400 border-t-transparent animate-spin"></div>
+  <div id="onlineWaitText" class="text-lg font-black text-cyan-200 tracking-wider">⏳ 正在等待对手完成开局换牌...</div>
+  <div class="text-xs text-slate-400">双方确认换牌后将自动进入第 1 回合</div>
+</div>
+
+<!-- 🌐 网页实时联机大厅弹窗 -->
+<div id="onlineLobbyModal" class="hidden">
+  <div class="ol-dialog">
+    <div class="ol-header">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🌐</span>
+        <div>
+          <div class="text-sm font-black text-cyan-200">网页实时联机大厅 <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-900 text-cyan-200 border border-cyan-500 ml-1">跨设备 / 密码房</span></div>
+          <div class="text-[11px] text-slate-400">无需下载，直接建房或输入密码加入他人房间对战 · 服务器裁判，杜绝作弊与偷看手牌</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="onlineConnBadge" class="px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-900 text-amber-200 border border-amber-500">🟡 未连接</span>
+        <input id="onlineNickInput" type="text" maxlength="14" placeholder="你的昵称" style="width:96px;padding:4px 8px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#fff;font-size:12px;font-weight:700;">
+        <button id="btnOnlineReconnect" class="ol-btn-slate">🔄 重连</button>
+        <button id="btnCloseOnlineLobby" class="ol-btn-rose">✕ 关闭</button>
+      </div>
+    </div>
+
+    <div class="ol-body">
+      <!-- 左侧：大厅房间列表 -->
+      <div class="ol-panel">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="text-sm font-black text-amber-300">📋 在线房间列表 <span id="onlineRoomCountText" class="text-xs text-slate-400">(0 个房间)</span></div>
+          <div class="flex items-center gap-1.5">
+            <input id="onlineQuickRoomCode" type="text" maxlength="10" placeholder="输入房间号" style="width:92px;padding:5px 8px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;">
+            <button id="btnQuickJoinRoom" class="ol-btn-cyan">🔑 凭号加入</button>
+            <button id="btnRefreshLobbyRooms" class="ol-btn-slate">刷新</button>
+          </div>
+        </div>
+        <div id="onlineRoomList" style="flex:1;min-height:220px;overflow-y:auto;" class="space-y-2 pr-1">
+          <div class="text-center text-slate-500 text-xs py-10">正在连接对战服务器并扫描房间...</div>
+        </div>
+        <div style="border-top:1px solid #334155;padding-top:10px;margin-top:4px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:900;color:#67e8f9;">👥 在线玩家 <span id="onlinePlayerCountText" style="font-size:11px;color:#94a3b8;font-weight:400;">(0 人在线)</span></span>
+            <span style="font-size:11px;color:#94a3b8;">可直接发起 10 秒对战邀请</span>
+          </div>
+          <div id="onlinePlayerList" style="max-height:96px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;">
+            <div style="font-size:11px;color:#64748b;text-align:center;padding:8px;">正在扫描在线玩家...</div>
+          </div>
+        </div>
+        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:8px 10px;font-size:11px;color:#94a3b8;">
+          💡 提示：如房间带有 <b style="color:#fcd34d;">🔒 密码保护</b>，点击「加入房间」后需输入房主设置的密码。双方均使用各自「卡组编辑」中的 40 张卡组出战！
+        </div>
+      </div>
+
+      <!-- 右侧：创建房间 / 房间等待室 -->
+      <div class="ol-panel">
+        <div id="onlineCreatePanel" class="flex flex-col gap-3">
+          <div class="text-sm font-black text-cyan-300">➕ 创建联机房间</div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">房间名称</label>
+            <input id="createRoomNameInput" type="text" maxlength="20" placeholder="例如：来一场紧张刺激的牌局！" style="width:100%;padding:8px 10px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#fff;font-size:12px;font-weight:700;">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">房间密码 <span class="text-slate-500">(留空则为公开房间)</span></label>
+            <input id="createRoomPwdInput" type="password" maxlength="16" placeholder="可选：设置 1~16 位加入密码" style="width:100%;padding:8px 10px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#fff;font-size:12px;font-weight:700;">
+          </div>
+          <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px;" class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-slate-300">🃏 当前出战卡组</span>
+              <span id="onlineMyDeckPreview" class="text-[11px] font-black text-emerald-300">--</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="onlineLobbyDeckSelect" class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs font-bold text-amber-200"></select>
+              <button id="btnOnlineLobbyEditDeck" class="ol-btn-slate shrink-0">🛠️ 编辑卡组</button>
+            </div>
+          </div>
+          <button id="btnCreateOnlineRoom" class="ol-btn-amber">🏠 创建房间并等待对手</button>
+        </div>
+
+        <div id="onlineRoomWaitPanel" class="hidden flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <div class="text-sm font-black text-emerald-300">🏠 房间等待室</div>
+            <span id="waitRoomLockTag" class="px-2 py-0.5 rounded-full text-[11px] font-black bg-slate-800 text-amber-300 border border-amber-500">🔒 密码房</span>
+          </div>
+          <div style="background:#0f172a;border:1px solid #06b6d4;border-radius:10px;padding:10px;" class="flex items-center justify-between gap-2">
+            <div>
+              <div id="waitRoomTitle" class="text-sm font-black text-white">--</div>
+              <div class="text-xs text-cyan-300 mt-0.5">房间号：<b id="waitRoomIdCode" style="letter-spacing:2px;color:#fcd34d;">--</b></div>
+            </div>
+            <button id="btnCopyRoomCode" class="ol-btn-slate">📋 复制房号</button>
+          </div>
+          <div class="space-y-2">
+            <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:8px 10px;" class="flex items-center justify-between">
+              <div>
+                <div class="text-[11px] text-amber-300 font-bold">👑 房主 (Player 1)</div>
+                <div id="waitHostName" class="text-xs font-black text-white mt-0.5">--</div>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-900 text-emerald-200 border border-emerald-500">已就绪</span>
+            </div>
+            <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:8px 10px;" class="flex items-center justify-between">
+              <div>
+                <div class="text-[11px] text-cyan-300 font-bold">⚔️ 挑战者 (Player 2)</div>
+                <div id="waitGuestName" class="text-xs font-black text-slate-400 mt-0.5">等待对手加入...</div>
+              </div>
+              <span id="waitGuestStatus" class="px-2 py-0.5 rounded-full text-[11px] font-black bg-slate-800 text-slate-400 border border-slate-600">空位</span>
+            </div>
+          </div>
+          <div id="waitHintText" class="text-xs text-slate-300 text-center py-1">请将房间号（和密码）分享给好友，或等待大厅玩家加入...</div>
+          <div class="flex gap-2 mt-1">
+            <button id="btnStartOnlineMatch" class="hidden ol-btn-emerald">🚀 开始联机对战</button>
+            <button id="btnLeaveOnlineRoom" class="ol-btn-rose">🚪 离开房间</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 🔐 加入密码房间弹窗 -->
+<!-- 🕹️ 街机房间对局详情与观战弹窗 -->
+<div id="arcadeRoomDetailModal" class="hidden fixed inset-0 bg-slate-950/82 backdrop-blur-sm z-[176] flex items-center justify-center p-4">
+  <div class="w-full max-w-lg bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-cyan-400/85 rounded-2xl p-5 shadow-[0_0_50px_rgba(34,211,238,0.35)] space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+      <div>
+        <div id="ardRoomTitle" class="text-base font-black text-amber-300">🕹️ 街机对战房间</div>
+        <div id="ardRoomSub" class="text-xs text-slate-400 mt-0.5">#-- · 状态</div>
+      </div>
+      <button id="btnCloseArcadeDetail" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-xs font-black">✕</button>
+    </div>
+    <div class="grid grid-cols-3 items-center gap-3 bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
+      <div class="flex flex-col items-center gap-1.5">
+        <img id="ardHostAvatar" class="w-16 h-16 rounded-xl border-2 border-amber-400 object-cover bg-slate-900" alt="Host">
+        <div id="ardHostName" class="text-xs font-black text-white truncate max-w-full">--</div>
+        <div id="ardHostHp" class="px-2.5 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/60 text-xs font-black text-emerald-300">❤️ 30</div>
+      </div>
+      <div class="flex flex-col items-center justify-center gap-1.5">
+        <div class="text-xl font-black text-amber-400 tracking-widest">VS</div>
+        <div id="ardTurnBadge" class="px-3 py-1 rounded-full bg-cyan-950 border border-cyan-500/60 text-xs font-black text-cyan-200">准备中</div>
+        <div id="ardSpecCount" class="text-[11px] font-bold text-slate-400">👁️ 0 人观战</div>
+      </div>
+      <div class="flex flex-col items-center gap-1.5">
+        <img id="ardGuestAvatar" class="w-16 h-16 rounded-xl border-2 border-cyan-400 object-cover bg-slate-900" alt="Guest">
+        <div id="ardGuestName" class="text-xs font-black text-slate-300 truncate max-w-full">等待加入</div>
+        <div id="ardGuestHp" class="px-2.5 py-0.5 rounded-full bg-rose-950 border border-rose-500/60 text-xs font-black text-rose-300">❤️ 30</div>
+      </div>
+    </div>
+    <div id="ardSpecRowWrap" class="hidden bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
+      <div class="text-[11px] font-bold text-cyan-300 mb-1.5">👁️ 正在观战的玩家</div>
+      <div id="ardSpecList" class="flex flex-wrap gap-2"></div>
+    </div>
+    <div class="flex gap-2.5">
+      <button id="btnArcadeSpectate" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white text-xs font-black shadow-lg">👁️ 进入观战</button>
+      <button id="btnArcadeJoin" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 text-xs font-black shadow-lg">⚔️ 加入对战</button>
+    </div>
+  </div>
+</div>
+
+<!-- 📋 粘贴导入牌组码弹窗 -->
+<div id="deckCodeImportModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-[220] flex items-center justify-center p-4">
+  <div class="w-full max-w-md bg-slate-900 border-2 border-cyan-400/85 rounded-2xl p-5 shadow-2xl space-y-3">
+    <div class="flex items-center justify-between">
+      <div class="text-base font-black text-cyan-300">📥 导入牌组码</div>
+      <button id="btnCloseDeckCodeModal" class="text-xs font-black text-slate-400 hover:text-white">✕</button>
+    </div>
+    <div class="text-xs text-slate-300">请粘贴其他玩家分享的 <b class="text-amber-300">CF1:...</b> 牌组码，系统将自动校验卡组完整性与合法性（须恰好 40 张且同名卡不超过 3 张）：</div>
+    <textarea id="deckCodePasteInput" rows="4" placeholder="在此粘贴 CF1:... 牌组码" class="w-full bg-slate-950 border border-slate-700 focus:border-cyan-400 rounded-xl p-3 text-xs font-mono text-emerald-200"></textarea>
+    <div id="deckCodeImportError" class="hidden text-xs font-bold text-rose-400"></div>
+    <div class="flex gap-2">
+      <button id="btnConfirmImportDeckCode" class="flex-1 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black">✅ 验证并导入卡组</button>
+      <button id="btnCancelImportDeckCode" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="onlinePwdModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-[175] flex items-center justify-center p-4">
+  <div class="w-full max-w-sm bg-slate-900 border-2 border-amber-400/80 rounded-2xl p-5 shadow-2xl space-y-3">
+    <div class="text-base font-black text-amber-300">🔐 请输入房间密码</div>
+    <div id="onlinePwdRoomDesc" class="text-xs text-slate-300">正在加入受密码保护的房间</div>
+    <input id="onlinePwdInput" type="password" maxlength="16" placeholder="输入房间密码..." class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-sm font-bold text-white focus:outline-none focus:border-amber-400">
+    <div id="onlinePwdError" class="hidden text-xs font-bold text-rose-400"></div>
+    <div class="flex gap-2 pt-1">
+      <button id="btnConfirmJoinPwd" class="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs">确认加入</button>
+      <button id="btnCancelJoinPwd" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs">取消</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- 🏠 现代化游戏主界面（含动态粒子与魔法阵背景，桌面端舒展大气，手机端自适应） -->
+<div id="mainMenuOverlay" style="position:fixed;inset:0;z-index:160;background:radial-gradient(circle at 50% 25%, #0f1f4a 0%, #070b18 60%, #020617 100%);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
+  <canvas id="mainMenuBgCanvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
+  <div id="mainMenuCardStream" style="position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;"></div>
+  <div style="position:relative;z-index:1;width:100%;max-width:1180px;display:flex;flex-direction:column;gap:18px;">
+    <!-- 顶部标题与玩家主战者名片 -->
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(135deg,rgba(15,23,42,0.58),rgba(30,27,75,0.58));backdrop-filter:blur(16px);border:1.5px solid rgba(56,189,248,0.55);border-radius:20px;padding:18px 24px;box-shadow:0 16px 48px rgba(0,0,0,0.65);">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:clamp(24px,3.5vw,38px);font-weight:900;background:linear-gradient(90deg,#fde047,#38bdf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1.5px;">CardForge · 冥刻之诗</span>
+          <span style="padding:3px 10px;border-radius:999px;background:rgba(245,158,11,0.18);border:1px solid #f59e0b;color:#fde047;font-size:11px;font-weight:800;">游戏 v1.49 商业打磨版 · 2×超采样3D与全貌卡图 · 圣殿金属新卡框 & 铜银金虹宝石 · 216张全卡池 · 价值体系</span>
+        </div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:4px;">影之诗 × 邪恶冥刻 策略构筑对战 · 支持网页跨设备联机与自定义主战者</div>
+        <div id="menuActiveDeckBadge" style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;background:rgba(16,185,129,0.14);border:1px solid rgba(52,211,153,0.45);color:#6ee7b7;font-size:12px;font-weight:800;">🃏 当前出战卡组：--</div>
+        
+        
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;background:rgba(2,6,23,0.6);border:1px solid rgba(129,140,248,0.4);border-radius:16px;padding:10px 14px;">
+        <img id="menuAvatarImg" src="" alt="主战者" style="width:68px;height:68px;border-radius:14px;border:2.5px solid #fbbf24;background:#090d16;object-fit:cover;box-shadow:0 0 18px rgba(251,191,36,0.4);">
+        <div>
+          <div style="font-size:11px;color:#94a3b8;font-weight:700;">当前主战者</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+            <input id="menuNickInput" type="text" maxlength="14" placeholder="输入你的名字" style="width:128px;padding:4px 8px;border-radius:8px;background:#0f172a;border:1.5px solid #38bdf8;color:#fff;font-size:13px;font-weight:900;">
+            <span id="menuNickSavedTip" style="font-size:11px;color:#34d399;font-weight:800;display:none;">已保存</span>
+          </div>
+          <div id="menuNickText" class="hidden">决斗者</div>
+          <button id="btnMenuBgmToggle" style="margin-top:6px;margin-right:6px;padding:5px 10px;border-radius:8px;background:#1e293b;color:#fde047;border:1px solid #f59e0b;font-size:12px;font-weight:800;cursor:pointer;">🎵 音乐: 开</button><button id="btnMenuMuteToggle" style="margin-top:6px;margin-right:6px;padding:5px 10px;border-radius:8px;background:#1e293b;color:#cbd5e1;border:1px solid #475569;font-size:12px;font-weight:800;cursor:pointer;">🔊 音效</button><button id="btnOpenAvatarCustomizer" style="margin-top:6px;padding:5px 12px;border-radius:8px;background:linear-gradient(90deg,#4f46e5,#7c3aed);color:#fff;border:1px solid #a5b4fc;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(99,102,241,0.35);">🎭 捏人定制主战者</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主功能大卡片网格（桌面端宽敞舒展，手机端紧凑自适应） -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:16px;">
+      <!-- 单人挑战 AI -->
+      <div class="menu-glass-card" style="background:linear-gradient(145deg,rgba(30,41,59,0.72),rgba(15,23,42,0.62));backdrop-filter:blur(14px);border:1.5px solid #f59e0b;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(245,158,11,0.16);">
+        <div style="font-size:18px;font-weight:900;color:#fde047;">🤖 单人挑战 AI</div>
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.5;">与全流派高智商战术 AI 切磋，AI 会按费用价值公式精打细算、优先优势交换与解场。</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
+          <select id="menuAiArch" style="flex:1;min-width:120px;padding:7px 10px;border-radius:8px;background:#0f172a;border:1px solid #475569;color:#fde047;font-size:12px;font-weight:700;">
+            <option value="mech">⚙️ 齿轮洪流</option>
+            <option value="dragon">🐉 苍穹龙血</option>
+            <option value="selfdamage">🩸 血债回响</option>
+            <option value="lastwords">🎸 终幕协奏</option>
+            <option value="guardian">🛡️ 纹章圣盾</option>
+          </select>
+          <select id="menuAiDiff" style="padding:7px 10px;border-radius:8px;background:#0f172a;border:1px solid #475569;color:#fca5a5;font-size:12px;font-weight:700;">
+            <option value="normal">普通 (30血)</option>
+            <option value="hard">困难 (40血+2回合抽牌)</option>
+            <option value="inferno">炼狱 (50血+4回合抽牌)</option>
+          </select>
+        </div>
+        <button id="btnMenuSpectate" title="AI 对 AI，双方自动出牌，你只需要看" style="margin-top:8px;padding:9px;border-radius:12px;background:linear-gradient(90deg,#0ea5e9,#6366f1);color:#fff;font-weight:900;font-size:13px;border:none;cursor:pointer;">👁 观战模式（AI 对 AI）</button>
+<button id="btnMenuStartPve" style="margin-top:auto;padding:11px;border-radius:12px;background:linear-gradient(90deg,#f59e0b,#ea580c);color:#020617;font-weight:900;font-size:14px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(245,158,11,0.4);">⚔️ 立即进入对战</button>
+      </div>
+
+      <!-- 网页联机对战 -->
+      <div style="background:linear-gradient(145deg,rgba(8,51,68,0.72),rgba(15,23,42,0.62));backdrop-filter:blur(14px);border:1.5px solid #22d3ee;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(34,211,238,0.16);">
+        <div style="font-size:18px;font-weight:900;color:#67e8f9;">🌐 网页联机对战</div>
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.5;">连接在线联机大厅，创建公开或密码保护房间，与好友跨设备实时 PvP 并互相展示主战者形象。</div>
+        <button id="btnMenuStartOnline" style="margin-top:auto;padding:11px;border-radius:12px;background:linear-gradient(90deg,#06b6d4,#2563eb);color:#fff;font-weight:900;font-size:14px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(6,182,212,0.4);">🌐 打开联机大厅</button>
+      </div>
+
+      <!-- 卡组编辑与双人同屏 -->
+      <div style="background:linear-gradient(145deg,rgba(6,78,59,0.62),rgba(15,23,42,0.62));backdrop-filter:blur(14px);border:1.5px solid #34d399;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(52,211,153,0.12);">
+        <div style="font-size:18px;font-weight:900;color:#6ee7b7;">🛠️ 卡组构筑与编辑</div>
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.5;">支持新建多套自定义卡组、右键与拖拽快捷增减卡牌（40张出战），或与身边朋友同屏切磋。</div>
+        <div style="display:flex;gap:10px;margin-top:auto;">
+          <button id="btnMenuDeckEditor" style="flex:1;padding:11px;border-radius:12px;background:#059669;color:#fff;font-weight:900;font-size:13px;border:none;cursor:pointer;">🛠️ 编辑卡组</button>
+          
+        </div>
+      </div>
+
+      <!-- 卡牌设计器 & 全词条百科 -->
+      <div style="background:linear-gradient(145deg,rgba(88,28,135,0.58),rgba(15,23,42,0.62));backdrop-filter:blur(14px);border:1.5px solid #c084fc;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(192,132,252,0.12);">
+        <div style="font-size:18px;font-weight:900;color:#e9d5ff;">🃏 设计器与词条百科</div>
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.5;">使用内嵌《卡牌设计器 v2.1》创作并导入全新卡牌，或在词条百科中查阅全部机制细节。</div>
+        <div style="display:flex;gap:10px;margin-top:auto;">
+          <button id="btnMenuDesigner" style="flex:1;padding:10px;border-radius:12px;background:#7e22ce;color:#fff;font-weight:900;font-size:12px;border:none;cursor:pointer;">🃏 设计器</button>
+          
+          <button id="btnMenuTutorial" style="flex:1;padding:10px;border-radius:12px;background:#334155;color:#fde047;font-weight:900;font-size:12px;border:1px solid #64748b;cursor:pointer;">📘 百科</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 🎭 主战者形象定制器弹窗 -->
+<div id="leaderAvatarModal" class="hidden" style="position:fixed;inset:0;z-index:198;background:rgba(2,6,23,0.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:12px;">
+  <div style="width:100%;max-width:760px;max-height:92dvh;background:#0f172a;border:2px solid #818cf8;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 40px rgba(129,140,248,0.35);">
+    <div style="padding:12px 16px;background:#020617;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:15px;font-weight:900;color:#e0e7ff;">🎭 自定义主战者形象（联机对战双方可见）</div>
+      <button id="btnCloseAvatarModal" class="ol-btn-rose">✕ 关闭</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;align-items:start;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;background:#020617;border:1px solid #334155;border-radius:14px;padding:14px;">
+        <img id="avatarPreviewImg" src="" alt="预览" style="width:168px;height:168px;border-radius:18px;border:3px solid #fbbf24;background:#090d16;object-fit:cover;">
+        <button id="btnRandomAvatar" class="ol-btn-slate" style="width:100%;">🎲 随机组合形象</button>
+        <button id="btnSaveAvatar" class="ol-btn-emerald" style="width:100%;flex:none;">✅ 保存并应用形象</button>
+        <button id="btnAvatarGoDeckEditor" type="button" style="width:100%;padding:8px 10px;border-radius:10px;background:linear-gradient(90deg,#0284c7,#4f46e5);border:1.5px solid #7dd3fc;color:#fff;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 4px 14px rgba(14,165,233,0.35);">🖼️ 前往卡牌编辑器选卡图头像</button>
+      </div>
+      <div id="avatarOptionsGrid" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ⚔️ 联机对战房间（双方左右展示自定义主战者、私有卡组选择/编辑、准备与开始） -->
+<div id="versusRoomModal" class="hidden" style="position:fixed;inset:0;z-index:190;background:radial-gradient(circle at 50% 30%, #0f172a 0%, #020617 100%);display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto;">
+  <div style="width:100%;max-width:980px;max-height:94dvh;background:rgba(15,23,42,0.96);border:2px solid #22d3ee;border-radius:20px;box-shadow:0 0 50px rgba(34,211,238,0.3);display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:12px 18px;background:#020617;border-bottom:1px solid #334155;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:16px;font-weight:900;color:#67e8f9;">⚔️ 联机对战房间</span>
+        <span id="vrRoomTitle" style="font-size:13px;font-weight:800;color:#fff;">--</span>
+        <span style="padding:2px 8px;border-radius:999px;background:#1e293b;border:1px solid #f59e0b;color:#fde047;font-size:11px;font-weight:900;">房号：<b id="vrRoomCode">--</b></span>
+        <button id="btnVrCopyCode" class="ol-btn-slate" style="padding:3px 8px;font-size:11px;">📋 复制</button>
+      </div>
+      <button id="btnVrLeaveRoom" class="ol-btn-rose">🚪 离开对战房间</button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;align-items:stretch;">
+      <!-- 左侧：房主 (Player 1) -->
+      <div style="background:rgba(2,6,23,0.75);border:1.5px solid #f59e0b;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <div style="font-size:12px;font-weight:900;color:#fde047;">👑 房主 (Player 1)</div>
+        <img id="vrHostAvatar" src="" alt="房主形象" style="width:112px;height:112px;border-radius:18px;border:3px solid #fbbf24;background:#090d16;object-fit:cover;box-shadow:0 0 20px rgba(251,191,36,0.35);">
+        <div id="vrHostName" style="font-size:16px;font-weight:900;color:#fff;">--</div>
+        <span id="vrHostOnlineTag" style="font-size:11px;font-weight:800;color:#34d399;">🟢 在线</span>
+        <span id="vrHostReadyBadge" style="padding:4px 12px;border-radius:999px;font-size:12px;font-weight:900;background:#1e293b;color:#94a3b8;border:1px solid #475569;">⏳ 准备中</span>
+        <div id="vrHostDeckArea" class="hidden" style="width:100%;margin-top:6px;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;">
+          <div style="font-size:11px;color:#94a3b8;font-weight:700;">🔒 我的私有卡组（对方不可见）</div>
+          <select id="vrHostDeckSelect" style="width:100%;padding:6px 8px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#6ee7b7;font-size:12px;font-weight:800;"></select>
+          <button id="btnVrHostEditDeck" class="ol-btn-slate" style="width:100%;font-size:11px;">🛠️ 编辑卡组</button>
+        </div>
+      </div>
+
+      <!-- 中央：双人街机对战机台 -->
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:6px;">
+        <div class="vr-arcade-machine" style="width:228px;background:linear-gradient(180deg,#1e1b4b 0%,#0f172a 55%,#020617 100%);border:2.5px solid #38bdf8;border-radius:16px 16px 10px 10px;box-shadow:0 0 32px rgba(56,189,248,0.38), inset 0 0 14px rgba(139,92,246,0.28);padding:8px 10px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;">
+          <!-- 街机顶部霓虹灯箱 -->
+          <div style="width:100%;padding:4px 8px;border-radius:8px;background:linear-gradient(90deg,#be123c,#7c3aed,#0284c7);border:1.5px solid #fde047;text-align:center;font-size:11px;font-weight:900;letter-spacing:1.5px;color:#fff;text-shadow:0 0 8px rgba(253,224,71,0.85);">🕹️ CARDFORGE ARCADE</div>
+          <!-- 街机CRT屏幕 -->
+          <div style="width:100%;background:radial-gradient(circle at 50% 40%,#0f2942 0%,#030712 100%);border:2px solid #0ea5e9;border-radius:10px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:inset 0 0 18px rgba(14,165,233,0.4);position:relative;overflow:hidden;">
+            <div style="font-size:24px;font-weight:900;background:linear-gradient(90deg,#fbbf24,#38bdf8,#f43f5e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:3px;filter:drop-shadow(0 0 8px rgba(56,189,248,0.65));">VS</div>
+            <div id="vrRoomScoreBoard" style="padding:3px 10px;border-radius:999px;background:rgba(2,6,23,0.88);border:1px solid #fbbf24;color:#fde047;font-size:11px;font-weight:900;">🏆 战绩：0 胜 : 0 胜</div>
+            <div id="vrStatusHint" style="font-size:11px;color:#bae6fd;text-align:center;line-height:1.35;">等待双方点击「准备」后即可开始对战</div>
+          </div>
+          <!-- 街机摇杆与双人按键台面 -->
+          <div style="width:100%;background:#0b1120;border:1px solid #334155;border-radius:8px;padding:5px 10px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span style="display:inline-block;width:11px;height:11px;border-radius:999px;background:#f59e0b;box-shadow:0 0 8px #f59e0b;border:1px solid #fef08a;"></span>
+              <span style="display:inline-block;width:7px;height:7px;border-radius:999px;background:#ef4444;"></span>
+              <span style="display:inline-block;width:7px;height:7px;border-radius:999px;background:#22c55e;"></span>
+            </div>
+            <span style="font-size:9px;font-weight:900;color:#64748b;letter-spacing:1px;">INSERT COIN</span>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span style="display:inline-block;width:7px;height:7px;border-radius:999px;background:#38bdf8;"></span>
+              <span style="display:inline-block;width:7px;height:7px;border-radius:999px;background:#a855f7;"></span>
+              <span style="display:inline-block;width:11px;height:11px;border-radius:999px;background:#22d3ee;box-shadow:0 0 8px #22d3ee;border:1px solid #bae6fd;"></span>
+            </div>
+          </div>
+        </div>
+        <button id="btnVrToggleReady" class="ol-btn-cyan" style="width:100%;max-width:228px;padding:10px 16px;font-size:14px;">✅ 点击准备</button>
+        <button id="btnVrStartMatch" class="hidden ol-btn-emerald" style="width:100%;max-width:228px;padding:11px 16px;font-size:14px;flex:none;">🚀 双方已就绪 · 开始对战</button>
+      </div>
+
+      <!-- 右侧：挑战者 (Player 2) -->
+      <div style="background:rgba(2,6,23,0.75);border:1.5px solid #22d3ee;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <div style="font-size:12px;font-weight:900;color:#67e8f9;">⚔️ 挑战者 (Player 2)</div>
+        <img id="vrGuestAvatar" src="" alt="挑战者形象" style="width:112px;height:112px;border-radius:18px;border:3px solid #22d3ee;background:#090d16;object-fit:cover;box-shadow:0 0 20px rgba(34,211,238,0.3);">
+        <div id="vrGuestName" style="font-size:16px;font-weight:900;color:#94a3b8;">等待挑战者加入...</div>
+        <span id="vrGuestOnlineTag" style="font-size:11px;font-weight:800;color:#64748b;">⚪ 等待加入</span>
+        <span id="vrGuestReadyBadge" style="padding:4px 12px;border-radius:999px;font-size:12px;font-weight:900;background:#1e293b;color:#64748b;border:1px solid #334155;">空位</span>
+        <div id="vrGuestDeckArea" class="hidden" style="width:100%;margin-top:6px;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;">
+          <div style="font-size:11px;color:#94a3b8;font-weight:700;">🔒 我的私有卡组（对方不可见）</div>
+          <select id="vrGuestDeckSelect" style="width:100%;padding:6px 8px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#6ee7b7;font-size:12px;font-weight:800;"></select>
+          <button id="btnVrGuestEditDeck" class="ol-btn-slate" style="width:100%;font-size:11px;">🛠️ 编辑卡组</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 📩 10秒倒计时对战邀请浮窗 -->
+<div id="battleInviteToast" class="hidden" style="position:fixed;top:16px;right:16px;z-index:210;width:min(340px,92vw);background:#0f172a;border:2px solid #22d3ee;border-radius:16px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,0.85),0 0 24px rgba(34,211,238,0.4);display:flex;flex-direction:column;gap:10px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <img id="inviterAvatarImg" src="" alt="邀请者" style="width:50px;height:50px;border-radius:12px;border:2px solid #fbbf24;background:#020617;object-fit:cover;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:900;color:#67e8f9;">⚔️ 收到实时对战邀请！</div>
+      <div id="inviterNameText" style="font-size:13px;font-weight:800;color:#fff;margin-top:2px;">-- 邀请你进入对战房间</div>
+    </div>
+    <span id="inviteCountdownNum" style="padding:3px 8px;border-radius:999px;background:#be123c;color:#fff;font-size:12px;font-weight:900;">10s</span>
+  </div>
+  <div style="width:100%;height:5px;background:#1e293b;border-radius:999px;overflow:hidden;">
+    <div id="inviteProgressBar" style="width:100%;height:100%;background:linear-gradient(90deg,#22d3ee,#f59e0b);transition:width 0.25s linear;"></div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button id="btnAcceptInvite" class="ol-btn-emerald" style="padding:8px;font-size:12px;">✅ 同意并进入房间</button>
+    <button id="btnDeclineInvite" class="ol-btn-rose" style="padding:8px 14px;font-size:12px;">❌ 拒绝</button>
+  </div>
+</div>
+
+
+<!-- ⚠️ 对手暂时离开/断线 15秒等待重连提示条 -->
+<div id="oppDisconnectBanner" class="hidden" style="position:fixed;top:46px;left:50%;transform:translateX(-50%);z-index:160;background:rgba(127,29,29,0.95);border:2px solid #fca5a5;border-radius:999px;padding:6px 18px;color:#fff;font-size:13px;font-weight:900;box-shadow:0 4px 20px rgba(0,0,0,0.75);display:flex;align-items:center;gap:8px;pointer-events:none;">
+  <span>⚠️</span>
+  <span id="oppDisconnectText">对手暂时离开，等待重连中 (15s)...</span>
+</div>
+
+<!-- 💾 单机游戏重连/恢复上次战斗询问弹窗 -->
+<div id="resumePveModal" class="hidden" style="position:fixed;inset:0;z-index:220;background:rgba(2,6,23,0.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:16px;">
+  <div style="width:100%;max-width:420px;background:#0f172a;border:2px solid #fbbf24;border-radius:18px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.85);display:flex;flex-direction:column;gap:12px;text-align:center;">
+    <div style="font-size:32px;">💾</div>
+    <div style="font-size:17px;font-weight:900;color:#fde047;">检测到未完成的单人对战</div>
+    <div id="resumePveDesc" style="font-size:13px;color:#cbd5e1;line-height:1.5;">上次战斗进行到第 1 回合，是否继续上次的战斗？</div>
+    <div style="display:flex;gap:10px;margin-top:6px;">
+      <button id="btnResumePveYes" class="ol-btn-emerald" style="padding:10px;font-size:13px;">▶️ 继续上次战斗</button>
+      <button id="btnResumePveNo" class="ol-btn-slate" style="padding:10px 14px;font-size:13px;">🆕 返回主菜单</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 🔮 敌方使用法术卡全效果详细展示浮层（非小横条，停留3.2秒，点击可提前关闭） -->
+<div id="oppSpellShowcaseModal" class="hidden" style="position:fixed;left:20px;top:72px;z-index:155;width:min(275px,68vw);background:rgba(2,6,23,0.96);border:2px solid #c084fc;border-radius:14px;padding:10px 12px;box-shadow:0 14px 44px rgba(0,0,0,0.92),0 0 28px rgba(192,132,252,0.45);display:flex;flex-direction:column;gap:10px;cursor:pointer;">
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(192,132,252,0.35);padding-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img id="oppSpellImg" src="" alt="法术" style="width:40px;height:40px;border-radius:10px;border:2px solid #e9d5ff;object-fit:cover;">
+      <div>
+        <div style="font-size:11px;font-weight:900;color:#e879f9;">🔮 对手发动了法术</div>
+        <div id="oppSpellName" style="font-size:14px;font-weight:900;color:#fff;">--</div>
+        <div id="oppSpellCost" style="font-size:12px;font-weight:800;color:#fde047;">--</div>
+      </div>
+    </div>
+    <span style="font-size:11px;color:#94a3b8;font-weight:700;">点击关闭</span>
+  </div>
+  <div id="oppSpellDesc" style="font-size:12px;line-height:1.55;color:#f1f5f9;white-space:pre-line;background:rgba(15,23,42,0.85);border:1px solid #334155;border-radius:10px;padding:10px;">--</div>
+</div>
+
+
+<!-- 💬 游戏内自定义确认与提示弹窗（绝不触发浏览器原生弹窗导致手机退出全屏/退回竖屏） -->
+<div id="gameCustomDialogModal" class="hidden" style="position:fixed;inset:0;z-index:9999;background:rgba(2,6,23,0.86);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:16px;">
+  <div style="width:100%;max-width:380px;background:#0f172a;border:2px solid #38bdf8;border-radius:18px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.9);display:flex;flex-direction:column;gap:14px;text-align:center;">
+    <div id="gameDialogIcon" style="font-size:28px;">💬</div>
+    <div id="gameDialogMsg" style="font-size:14px;font-weight:800;color:#f8fafc;line-height:1.5;">--</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button id="btnGameDialogYes" class="ol-btn-cyan" style="flex:1;padding:10px;font-size:13px;">确定</button>
+      <button id="btnGameDialogNo" class="ol-btn-slate" style="flex:1;padding:10px;font-size:13px;">取消</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ⚡ 斩杀慢动作特写 -->
+<div id="lethalSlowmoOverlay" class="hidden lethal-ov-root">
+  <div class="lethal-ov-slash"></div>
+  <div class="lethal-ov-core">
+    <div class="lethal-ov-title">致命一击</div>
+    <div class="lethal-ov-sub">LETHAL FINISH</div>
+  </div>
+</div>
+
+<!-- 😊 我方主战者表情快捷轮盘 -->
+<div id="leaderEmotePicker" class="interactive-zone hidden" style="position:fixed;bottom:165px;left:50%;transform:translateX(-50%);z-index:165;background:rgba(15,23,42,0.96);border:2px solid #fbbf24;border-radius:16px;padding:10px;display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:6px;box-shadow:0 12px 36px rgba(0,0,0,0.9);">
+</div>
+
+<!-- 💬 联机局内聊天浮窗 -->
+<div id="inGameChatWidget" class="interactive-zone hidden" style="position:fixed;bottom:14px;right:208px;z-index:162;">
+  <button id="btnToggleInGameChat" style="position:relative;padding:8px 14px;border-radius:999px;background:#0f172a;border:2px solid #38bdf8;color:#7dd3fc;font-size:13px;font-weight:900;box-shadow:0 4px 16px rgba(0,0,0,0.75);">
+    💬 聊天
+    <span id="chatUnreadDot" class="hidden" style="position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:999px;background:#f43f5e;border:1.5px solid #fff;"></span>
+  </button>
+  <div id="inGameChatPanel" class="hidden" style="position:absolute;bottom:44px;right:0;width:min(320px,84vw);background:rgba(2,6,23,0.95);border:2px solid #38bdf8;border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 12px 36px rgba(0,0,0,0.9);">
+    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;padding-bottom:6px;">
+      <span style="font-size:13px;font-weight:900;color:#7dd3fc;">💬 局内实时聊天</span>
+      <button id="btnCloseInGameChat" style="padding:2px 8px;border-radius:6px;background:#1e293b;color:#cbd5e1;font-size:12px;font-weight:900;">✕</button>
+    </div>
+    <div id="inGameChatMessages" style="height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;font-size:12px;touch-action:pan-y;"></div>
+    <div style="display:flex;gap:6px;">
+      <input id="inGameChatInput" type="text" maxlength="60" placeholder="发送消息给对手..." style="flex:1;padding:6px 10px;border-radius:8px;background:#0f172a;border:1px solid #475569;color:#fff;font-size:12px;">
+      <button id="btnSendInGameChat" class="ol-btn-cyan" style="padding:6px 12px;font-size:12px;">发送</button>
+    </div>
+  </div>
+</div>
+
+<div id="sacrificeGuideBanner" style="top: 118px; z-index: 9999; background: linear-gradient(90deg, #4c0519 0%, #090d16 50%, #1e1b4b 100%); opacity: 1;" class="hidden fixed left-1/2 -translate-x-1/2 px-7 py-2.5 rounded-2xl border-2 border-amber-300 shadow-[0_0_36px_rgba(244,63,94,0.85)] flex items-center gap-3 pointer-events-none">
+  <span id="sacGuideStepBadge" class="px-2.5 py-0.5 rounded-full bg-rose-600 border border-amber-200 text-xs font-black text-white shadow">步骤 1/2</span>
+  <span id="sacGuideMainText" class="text-sm font-black text-amber-200 tracking-wide">请选择要献祭的己方随从</span>
+</div>
+<div id="counterInfoPopover" class="interactive-zone hidden fixed z-[940] w-[270px] max-w-[85vw] bg-slate-950/96 border-2 border-amber-400/90 rounded-xl p-3 shadow-[0_10px_32px_rgba(0,0,0,0.92)] pointer-events-auto">
+  <div class="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-1.5">
+    <div id="counterInfoTitle" class="text-xs font-black text-amber-300 flex items-center gap-1.5"></div>
+    <button id="btnCloseCounterInfo" class="text-xs font-black text-slate-400 hover:text-white px-1">✕</button>
+  </div>
+  <div id="counterInfoValue" class="text-[11px] font-black text-cyan-300 mb-1"></div>
+  <div id="counterInfoDesc" class="text-xs text-slate-200 leading-relaxed"></div>
+</div>
+<div id="svDetailPanel" class="interactive-zone hidden fixed left-8 top-20 z-[950] w-[380px] bg-slate-950/96 border-2 border-amber-400/90 rounded-2xl p-4 shadow-[0_12px_45px_rgba(0,0,0,0.92)] flex flex-col gap-3 max-h-[74vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-amber-500/35 pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span id="detEnergyBadge" class="w-8 h-8 rounded-full bg-emerald-600 border-2 border-emerald-300 flex items-center justify-center font-black text-base text-white shadow">2</span>
+          <div>
+            <div id="detCardName" class="text-lg font-black text-white leading-tight">赛博牧羊人</div>
+            <div id="detCardSub" class="text-xs text-amber-300 font-bold mt-0.5">随从 · 机械 · 稀有</div>
+          </div>
+        </div>
+        <button id="btnCloseDetail" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-xs font-bold">✕</button>
+      </div>
+
+      <div class="flex items-center justify-between bg-slate-900/95 rounded-xl px-3.5 py-2 text-xs border border-slate-800">
+        <div id="detCostsRow" class="flex items-center gap-2.5 font-bold"></div>
+        <div id="detStatsRow" class="flex items-center gap-2.5 font-black text-sm"></div>
+      </div>
+
+      <div id="detSegmentedEffects" class="flex flex-col gap-2 text-[13px] leading-relaxed"></div>
+
+      <!-- 新增：当卡牌获得效果时，在详细面板中一条条排列展示所有获得的附加效果 -->
+      <div id="detGrantedEffectsWrap" class="hidden flex flex-col gap-1.5 pt-2 border-t border-amber-500/35">
+        <div class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+          <span>✨ 附加效果 (已获得能力)</span>
+        </div>
+        <div id="detGrantedEffectsList" class="flex flex-col gap-1.5 text-xs"></div>
+      </div>
+
+      <div id="detActionBox" class="hidden pt-1">
+        <button id="btnDetailAction" class="w-full py-2.5 rounded-xl bg-gradient-to-b from-amber-500 to-amber-800 hover:from-amber-400 hover:to-amber-700 border border-amber-300 text-white font-black text-sm shadow-lg transition"></button>
+      </div>
+    </div>
+<div id="extraEnergyEndTurnModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(2,6,23,0.76);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px;">
+  <div style="width:100%;max-width:360px;background:linear-gradient(180deg,#0f172a,#020617);border:2px solid #f472b6;border-radius:16px;padding:18px 20px;box-shadow:0 0 32px rgba(244,114,182,0.45);display:flex;flex-direction:column;gap:12px;">
+    <div style="font-size:15px;font-weight:900;color:#f9a8d4;display:flex;align-items:center;gap:8px;"><span>💖</span><span>粉色额外能量即将失效</span></div>
+    <p style="font-size:12px;line-height:1.6;color:#e2e8f0;margin:0;">你当前还有未使用的 <b style="color:#f472b6;">粉色额外能量</b>，下回合开始时将会消失，且你当前仍有可消耗该能量的出牌或启动选项。确定要直接结束回合吗？</p>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-top:4px;">
+      <button id="btnCancelExtraEndTurn" type="button" style="padding:7px 14px;border-radius:8px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;font-size:12px;font-weight:700;cursor:pointer;">返回使用</button>
+      <button id="btnConfirmExtraEndTurn" type="button" style="padding:7px 14px;border-radius:8px;background:linear-gradient(90deg,#db2777,#e11d48);border:1px solid #fbcfe8;color:#fff;font-size:12px;font-weight:900;cursor:pointer;">确定结束回合</button>
+    </div>
+  </div>
+</div>
+<!-- 🎨 高清卡图首次加载提示与进度条浮层 -->
+<div id="cfArtLoadingOverlay" class="hidden" style="position:fixed;inset:0;z-index:995;background:rgba(2,6,23,0.82);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:16px;">
+  <div style="width:min(440px,92vw);background:linear-gradient(180deg,#0f172a,#020617);border:2px solid #fbbf24;border-radius:20px;padding:20px 22px;box-shadow:0 18px 50px rgba(0,0,0,0.85);color:#f1f5f9;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:24px;">🎨</span>
+      <div>
+        <div id="cfArtLoadingTitle" style="font-size:16px;font-weight:900;color:#fde68a;">正在加载高清卡图资源</div>
+        <div id="cfArtLoadingSub" style="font-size:12px;color:#94a3b8;margin-top:2px;line-height:1.45;">首次进入需要下载卡图包，完成后会自动缓存在本地，后续进入秒开。</div>
+      </div>
+    </div>
+    <div style="width:100%;height:12px;background:#1e293b;border-radius:999px;overflow:hidden;border:1px solid rgba(251,191,36,0.35);">
+      <div id="cfArtProgressBar" style="width:4%;height:100%;background:linear-gradient(90deg,#38bdf8,#fbbf24,#f59e0b);border-radius:999px;transition:width 0.18s ease;"></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;">
+      <span id="cfArtProgressText" style="color:#7dd3fc;">正在连接卡图服务器...</span>
+      <span id="cfArtProgressPct" style="color:#fde047;">0%</span>
+    </div>
+    <div id="cfArtErrorNote" class="hidden" style="font-size:11.5px;color:#fca5a5;background:rgba(127,29,29,0.35);border:1px solid rgba(248,113,113,0.45);border-radius:10px;padding:8px 10px;line-height:1.45;">
+      卡图下载中断，请检查网络后点击重试（加载完成一次即自动缓存在本地）。
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:2px;">
+      <button id="btnCfArtRetry" type="button" class="hidden" style="padding:7px 14px;border-radius:10px;background:linear-gradient(90deg,#d97706,#f59e0b);border:1px solid #fde68a;color:#020617;font-size:12px;font-weight:900;cursor:pointer;">🔄 重新加载卡图</button>
+      <button id="btnCfArtBgLoad" type="button" style="padding:7px 14px;border-radius:10px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;font-size:12px;font-weight:800;cursor:pointer;">先进入游戏（后台加载）</button>
+    </div>
+  </div>
+</div>
+<!-- 后台加载迷你进度胶囊 -->
+<div id="cfArtLoadingPill" class="hidden" style="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:994;padding:5px 14px;border-radius:999px;background:rgba(15,23,42,0.92);border:1.5px solid #fbbf24;color:#fde68a;font-size:12px;font-weight:900;box-shadow:0 6px 20px rgba(0,0,0,0.65);display:none;align-items:center;gap:8px;cursor:pointer;">
+  <span>🎨 卡图后台加载中</span>
+  <span id="cfArtPillPct" style="color:#38bdf8;">0%</span>
+</div>
+
+<script src="artEngine.js?v=135"></script>
+<script src="game.js?v=135"></script>
+
+
+
+
+<!-- 献祭与分步出牌中央高亮操作引导横幅（置顶独立层，不被主战者头像遮挡） -->
+
+
+
+
+
+</body>
+</html>

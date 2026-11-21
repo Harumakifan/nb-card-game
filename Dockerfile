@@ -1,76 +1,43 @@
-# CardForge · 冥刻之诗（纯静态前端容器镜像）—— 加固版 2026-11-22
-# 基线镜像锁定 digest，避免 latest 漂移
-FROM nginx@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7
+# syntax=docker/dockerfile:1
+# CardForge · 冥刻之诗 —— 多阶段镜像
+#   build  ：Node 构建前端（拼接 / 压缩 / 内容哈希 / 卡图缩略图 / 预压缩）
+#   web    ：nginx 托管 dist/，并把 /ws 反向代理到 server
+#   server ：Node 权威对战服务器（不对外暴露端口，只在 compose 内网被 nginx 访问）
+# 建议上线前把 NODE_IMAGE 也锁定到 digest（node:<版本>-alpine@sha256:...）
+ARG NODE_IMAGE=node:26.13.1-alpine
 
-RUN cat <<'EOF' > /etc/nginx/conf.d/default.conf
-limit_req_zone $binary_remote_addr zone=bigfile:10m rate=60r/m;
+FROM ${NODE_IMAGE} AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY server/package.json server/
+# esbuild / sharp 的平台二进制通过 optionalDependencies 安装，不需要执行安装脚本
+RUN npm ci --no-audit --no-fund --ignore-scripts
+COPY scripts scripts
+COPY src src
+COPY web web
+RUN npm run build
 
-server {
-    listen 80;
-    server_name _;
-    server_tokens off;
-
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # 经 cloudflared 回源，真实客户端 IP 在 CF-Connecting-IP
-    set_real_ip_from 127.0.0.1;
-    real_ip_header CF-Connecting-IP;
-    real_ip_recursive on;
-
-    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob: data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:8080 ws://localhost:8080 wss://broker.emqx.io:8084 wss://broker.hivemq.com:8884; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
-    add_header X-Content-Type-Options nosniff always;
-    add_header Referrer-Policy no-referrer always;
-    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
-
-    sendfile on;
-    tcp_nopush on;
-    tcp_nodelay on;
-    keepalive_timeout 65;
-
-    gzip on;
-    gzip_vary on;
-    gzip_proxied any;
-    gzip_comp_level 6;
-    gzip_min_length 1024;
-    gzip_types text/plain text/css text/javascript application/javascript application/json image/svg+xml;
-    gzip_static on;
-
-    location = /index.html {
-        expires -1;
-        try_files $uri =404;
-    }
-
-    location ~* ^/cards_art_pack.*\.js$ {
-        limit_req zone=bigfile burst=20 nodelay;
-        gzip_static on;
-        expires 1y;
-        try_files $uri =404;
-    }
-
-    location ~* \.(js|css|webp|png|jpg|jpeg|svg|ico|woff2?)$ {
-        expires 7d;
-        try_files $uri =404;
-    }
-
-    location = /health {
-        access_log off;
-        default_type text/plain;
-        return 200 "ok\n";
-    }
-
-    location / {
-        expires -1;
-        try_files $uri $uri/ /index.html;
-    }
-}
-EOF
-
-RUN rm -rf /usr/share/nginx/html/*
-COPY index.html styles.css artEngine.js game.js cards_art_pack*.js /usr/share/nginx/html/
-# 预压缩 84MB 卡图包，命中 gzip_static 后传输量降到约 1/8
-RUN cd /usr/share/nginx/html && gzip -9 -k cards_art_pack*.js && ls -lh cards_art_pack*.js*
-
+# 基线镜像锁定 digest，避免 latest 漂移（沿用原配置）
+FROM nginx@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7 AS web
+RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
+COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx/snippets/ /etc/nginx/snippets/
+COPY --from=build /app/dist/ /usr/share/nginx/html/
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD wget -qO- http://127.0.0.1/health || exit 1
 CMD ["nginx", "-g", "daemon off;"]
+
+FROM ${NODE_IMAGE} AS server
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 TRUST_PROXY=1
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY server/package.json server/
+RUN npm ci --omit=dev --workspace server --no-audit --no-fund --ignore-scripts && npm cache clean --force
+# 服务器在无头沙箱中运行与浏览器完全相同的规则代码
+COPY server/src server/src
+COPY src/client src/client
+COPY web/index.html web/index.html
+USER node
+EXPOSE 8787
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD node -e "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "server/src/index.js"]

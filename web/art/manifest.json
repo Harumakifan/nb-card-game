@@ -1,0 +1,653 @@
+{
+ "version": 1,
+ "cards": {
+  "万齿战车": {
+   "full": "art/full/2b862a5137799825.webp"
+  },
+  "丢失的龙蛋": {
+   "full": "art/full/e319f309c554da1c.webp"
+  },
+  "乱刃机甲": {
+   "full": "art/full/97e6e5bf4c47cdea.webp"
+  },
+  "亡灵大礼包": {
+   "full": "art/full/3757b8ad8c3d93cb.webp"
+  },
+  "亡灵总动员": {
+   "full": "art/full/98ee5b872971e9b9.webp"
+  },
+  "亡灵骑士": {
+   "full": "art/full/6276f09d2fd0070c.webp"
+  },
+  "传承": {
+   "full": "art/full/ab035008a8b70bc3.webp"
+  },
+  "伺机待发的猎鹰骑士": {
+   "full": "art/full/880854ffbd3e055b.webp"
+  },
+  "使命必达小子": {
+   "full": "art/full/d77d6a61377d4fb3.webp"
+  },
+  "傲慢的将军": {
+   "full": "art/full/037a59ebba63307a.webp"
+  },
+  "傲慢的蔷薇大小姐": {
+   "full": "art/full/c9ff54d91b92c9af.webp"
+  },
+  "元气弹": {
+   "full": "art/full/2db2ac4a2ab5a19f.webp"
+  },
+  "八岐大蛇": {
+   "full": "art/full/78a1f807241ca2f5.webp"
+  },
+  "冒绿火的无头战士": {
+   "full": "art/full/7ead9f33b0b10a1d.webp"
+  },
+  "冥河引渡人": {
+   "full": "art/full/9eaa8daec6625381.webp"
+  },
+  "冲锋的无头骑士": {
+   "full": "art/full/3efd516dd4187299.webp"
+  },
+  "利刃蔷薇剑士": {
+   "full": "art/full/c2090b67e095b9f5.webp"
+  },
+  "刺枪白骑": {
+   "full": "art/full/a7f83f2f80184ac5.webp"
+  },
+  "刺盾少女": {
+   "full": "art/full/894e6cea1ef69ceb.webp"
+  },
+  "刺骨": {
+   "full": "art/full/5b1530000c4a92a4.webp"
+  },
+  "南瓜捣蛋鬼": {
+   "full": "art/full/8a5e7b3738f0ffbd.webp"
+  },
+  "双炮神罚": {
+   "full": "art/full/b57c09072f208529.webp"
+  },
+  "反击的蔷薇剑士": {
+   "full": "art/full/eff2b34123bf7747.webp"
+  },
+  "发条侍从": {
+   "full": "art/full/c2cb2db62e3e7643.webp"
+  },
+  "发条龙": {
+   "full": "art/full/effe43db55586050.webp"
+  },
+  "变形计": {
+   "full": "art/full/7ca7d68dde8fce73.webp"
+  },
+  "叹息之墙盾": {
+   "full": "art/full/aebcdab5e45c6800.webp"
+  },
+  "吞噬万物的恶魔": {
+   "full": "art/full/209bc7e55f7cf6fb.webp"
+  },
+  "吸血鬼贵族": {
+   "full": "art/full/f66466b060c17635.webp"
+  },
+  "咆哮的狼人": {
+   "full": "art/full/416a0a9b83af4b71.webp"
+  },
+  "哀乐奏响者": {
+   "full": "art/full/f744f45d5d2a2045.webp"
+  },
+  "喷火龙": {
+   "full": "art/full/9a4a098bd923080b.webp"
+  },
+  "嗜血的亡灵": {
+   "full": "art/full/b80922a6839e6f1b.webp"
+  },
+  "团结的守卫": {
+   "full": "art/full/3f718c816179fbf6.webp"
+  },
+  "圣光照耀": {
+   "full": "art/full/4dd14d5091c71e00.webp"
+  },
+  "圣枪重凯": {
+   "full": "art/full/b83393f46b75cd1f.webp"
+  },
+  "圣甲猛虎": {
+   "full": "art/full/33c561bdc8e7d333.webp"
+  },
+  "圣骑兵": {
+   "full": "art/full/c389ffc3f68fbde8.webp"
+  },
+  "圣骑兵招募": {
+   "full": "art/full/3daf0b65cf814f50.webp"
+  },
+  "圣骑士士官长": {
+   "full": "art/full/f9fa772e9c529f38.webp"
+  },
+  "圣骑将军": {
+   "full": "art/full/9ce3bcb570c8dbc8.webp"
+  },
+  "地狱三头犬": {
+   "full": "art/full/7a4ad589f2c80c8f.webp"
+  },
+  "地狱归来的凶魔": {
+   "full": "art/full/d2781cf906c1a629.webp"
+  },
+  "坚固的狮子石像": {
+   "full": "art/full/a91842d58a998873.webp"
+  },
+  "坚定守护者": {
+   "full": "art/full/abd78560d5b5edcf.webp"
+  },
+  "堕天": {
+   "full": "art/full/0196639e31549a8d.webp"
+  },
+  "堕天使": {
+   "full": "art/full/0b9f37606414e132.webp"
+  },
+  "增殖机甲": {
+   "full": "art/full/14b2be4428b61d03.webp"
+  },
+  "士兵": {
+   "full": "art/full/eb915dadff342332.webp"
+  },
+  "大剑少女": {
+   "full": "art/full/46f7daa0d5e77bc9.webp"
+  },
+  "大灾变": {
+   "full": "art/full/23e605445f6407f6.webp"
+  },
+  "失控的战甲犀牛": {
+   "full": "art/full/ff1e7f157b8c6975.webp"
+  },
+  "孤傲的浪人": {
+   "full": "art/full/3cd48b0bd23310b5.webp"
+  },
+  "孵化万物的龙女": {
+   "full": "art/full/a17adbf3eaa611ad.webp"
+  },
+  "孵化装置": {
+   "full": "art/full/0f7fb35d13e522d8.webp"
+  },
+  "宁静的治愈师": {
+   "full": "art/full/a70b7f889f66e82b.webp"
+  },
+  "守卫城堡的指挥官": {
+   "full": "art/full/e63c352c8e5c3686.webp"
+  },
+  "守护世界的女神官": {
+   "full": "art/full/b72ad56054c1fe9b.webp"
+  },
+  "守护之光芒": {
+   "full": "art/full/e22b34cd72e585fd.webp"
+  },
+  "守护祷告者": {
+   "full": "art/full/1d94f3491420e517.webp"
+  },
+  "宫殿守卫": {
+   "full": "art/full/b5e39e71aab8798d.webp"
+  },
+  "寻觅的亡灵": {
+   "full": "art/full/40b817f333139ad8.webp"
+  },
+  "小小唤灵术士": {
+   "full": "art/full/338daa8efa2d754c.webp"
+  },
+  "尸兵": {
+   "full": "art/full/ec502ddd1b801ace.webp"
+  },
+  "屠龙勇士": {
+   "full": "art/full/92c40938fb26333c.webp"
+  },
+  "巨型秃鹫": {
+   "full": "art/full/521d68056cda1beb.webp"
+  },
+  "巨型骸骨兽": {
+   "full": "art/full/0a52210d48b30c26.webp"
+  },
+  "废弃邪殿": {
+   "full": "art/full/0ed4887448e23cb8.webp"
+  },
+  "废物利用": {
+   "full": "art/full/6e2553d127fcc5f8.webp"
+  },
+  "开辟的传教士": {
+   "full": "art/full/dbc1662d21f1b142.webp"
+  },
+  "引导胜利的指挥官": {
+   "full": "art/full/c30eca70537348d2.webp"
+  },
+  "归来的剑圣": {
+   "full": "art/full/dd8696a4a011f2b0.webp"
+  },
+  "待研究的骨架": {
+   "full": "art/full/d648f536279ae9ae.webp"
+  },
+  "律法具现者": {
+   "full": "art/full/9e6c27781e8c9d00.webp"
+  },
+  "快速孵化": {
+   "full": "art/full/dc093048faf9c614.webp"
+  },
+  "怨灵": {
+   "full": "art/full/0a5a4ab73d9de49d.webp"
+  },
+  "恐龙妈妈": {
+   "full": "art/full/c8a983f123128bca.webp"
+  },
+  "恶魔的仆从": {
+   "full": "art/full/b77704bdbbde55d0.webp"
+  },
+  "慈爱的龙母": {
+   "full": "art/full/b8243bde363d21ca.webp"
+  },
+  "慷慨的天使": {
+   "full": "art/full/cbe49d98b0ca001f.webp"
+  },
+  "戏谑的吸血鬼": {
+   "full": "art/full/335e6ff9e5bbf048.webp"
+  },
+  "战车": {
+   "full": "art/full/001fb7ba34993560.webp"
+  },
+  "战车：觉醒": {
+   "full": "art/full/3cedf758f2c291a3.webp"
+  },
+  "扭曲虚空": {
+   "full": "art/full/b8db04eb12322be8.webp"
+  },
+  "折光镜像师": {
+   "full": "art/full/50461f2c2e04a729.webp"
+  },
+  "招魂的术士": {
+   "full": "art/full/a14e4b5614309b47.webp"
+  },
+  "拯救世界的大天使": {
+   "full": "art/full/4c0292d0f2102bab.webp"
+  },
+  "持盾的骷髅士兵": {
+   "full": "art/full/1d03fa81b78e4c18.webp"
+  },
+  "换帅": {
+   "full": "art/full/d520368643902bea.webp"
+  },
+  "掘墓者": {
+   "full": "art/full/6b8971c99e5908bf.webp"
+  },
+  "探寻巨龙者": {
+   "full": "art/full/fbcc260e8d8ee89a.webp"
+  },
+  "插满刀的血块怪": {
+   "full": "art/full/a9c3440794fc2e4d.webp"
+  },
+  "摇滚骷髅乐团主唱": {
+   "full": "art/full/1b6ae0f279b87d63.webp"
+  },
+  "摇滚骷髅乐团鼓手": {
+   "full": "art/full/3f7c6a6b7e990c23.webp"
+  },
+  "摇滚骷髅吉他手": {
+   "full": "art/full/046d1202ade7eea1.webp"
+  },
+  "撕裂": {
+   "full": "art/full/4a871643f6bce644.webp"
+  },
+  "无畏的飞龙骑手": {
+   "full": "art/full/531ce6e08b1385f3.webp"
+  },
+  "机械降神": {
+   "full": "art/full/4dde8d7727730a51.webp"
+  },
+  "杂耍戏命师": {
+   "full": "art/full/2f337dbce32f1a87.webp"
+  },
+  "死神代行人": {
+   "full": "art/full/747e9e84ddd3db89.webp"
+  },
+  "残暴的尸兽": {
+   "full": "art/full/ba9602a28516fec4.webp"
+  },
+  "毁灭世界的魔王": {
+   "full": "art/full/82d7b3a4d4202eab.webp"
+  },
+  "沉睡的恐龙化石": {
+   "full": "art/full/9977c7ac7f0fb266.webp"
+  },
+  "沐浴龙血的天使": {
+   "full": "art/full/d33a2b5f61986b8d.webp"
+  },
+  "派对南瓜头": {
+   "full": "art/full/41054be4a58a7571.webp"
+  },
+  "派对天使": {
+   "full": "art/full/7a20c00afdd957a3.webp"
+  },
+  "流淌龙血的侠客": {
+   "full": "art/full/17c091956c592573.webp"
+  },
+  "浴血的刀客": {
+   "full": "art/full/336b010180defa50.webp"
+  },
+  "滑板跃迁手": {
+   "full": "art/full/ea54a3b15e79350b.webp"
+  },
+  "满腔热血的霸者": {
+   "full": "art/full/2dc345acda9573a0.webp"
+  },
+  "灵魂雕塑家": {
+   "full": "art/full/82d1a0ce10e30de7.webp"
+  },
+  "灾变中幸存的恐龙": {
+   "full": "art/full/c9594d197cb8cef7.webp"
+  },
+  "灾难预言者": {
+   "full": "art/full/32d6652bef51a248.webp"
+  },
+  "炽炎之术": {
+   "full": "art/full/2d1522bc4bad3790.webp"
+  },
+  "烈焰漩涡": {
+   "full": "art/full/9a25ab25fc4a2ef2.webp"
+  },
+  "烟消云散": {
+   "full": "art/full/3eabcee522c74daa.webp"
+  },
+  "热情的魅魔": {
+   "full": "art/full/e2925a796dcb7848.webp"
+  },
+  "燃血术士": {
+   "full": "art/full/f50e337904a9c143.webp"
+  },
+  "爆炸羊狂热者": {
+   "full": "art/full/9915f2b38dcf8e96.webp"
+  },
+  "狂暴女拳师": {
+   "full": "art/full/6c29e299fefec176.webp"
+  },
+  "狼少女": {
+   "full": "art/full/56ec0f0494ad4218.webp"
+  },
+  "猎魄师": {
+   "full": "art/full/f1e33aa091778fa5.webp"
+  },
+  "猛虎神殿": {
+   "full": "art/full/5eb0621226a2a92d.webp"
+  },
+  "猛虎训练师": {
+   "full": "art/full/9d5da54396127f62.webp"
+  },
+  "猫耳播报员": {
+   "full": "art/full/185a907592fc0cde.webp"
+  },
+  "玩耍的唤灵术士": {
+   "full": "art/full/15fb3a812711ca94.webp"
+  },
+  "玩闹的恶魔": {
+   "full": "art/full/bea3fdd68ac229af.webp"
+  },
+  "电子羊": {
+   "full": "art/full/0b58436701bbafb6.webp"
+  },
+  "疯狂科学家": {
+   "full": "art/full/8d071783c8d10b19.webp"
+  },
+  "疼痛疗愈者": {
+   "full": "art/full/0e0245e6f8d73989.webp"
+  },
+  "疾驰魔将": {
+   "full": "art/full/1d01c4b6f1dd6e49.webp"
+  },
+  "痛恨快攻卡组的玩家": {
+   "full": "art/full/5febe3170ea0d58b.webp"
+  },
+  "百变怪": {
+   "full": "art/full/7337d5a0040bcec8.webp"
+  },
+  "百鬼夜行": {
+   "full": "art/full/e1fe6dadc6b0ef38.webp"
+  },
+  "碎甲刃机": {
+   "full": "art/full/d2f3d9bc6910f103.webp"
+  },
+  "碎骨火种": {
+   "full": "art/full/724aecbce5b2b7f1.webp"
+  },
+  "磁力拼装机械": {
+   "full": "art/full/cb13e452397fa5ce.webp"
+  },
+  "祝福的圣骑士": {
+   "full": "art/full/fa852583c5610d47.webp"
+  },
+  "神圣宫廷祷告师": {
+   "full": "art/full/0a41354c708516fd.webp"
+  },
+  "神圣宫殿": {
+   "full": "art/full/203ecb75283dbcf1.webp"
+  },
+  "神圣法典": {
+   "full": "art/full/8330aab92fff6f83.webp"
+  },
+  "神圣翼甲战士": {
+   "full": "art/full/f8d9ac89f07a3668.webp"
+  },
+  "祷告的圣女": {
+   "full": "art/full/2fee49ac6734c943.webp"
+  },
+  "窃蛋龙": {
+   "full": "art/full/32b96b1c11aa3d8c.webp"
+  },
+  "精灵女王": {
+   "full": "art/full/72dec718bb2f1da6.webp"
+  },
+  "终焉之龙": {
+   "full": "art/full/9c049fad25b1f8ad.webp"
+  },
+  "翱翔天际的龙骑手": {
+   "full": "art/full/bd5321a3561f797b.webp"
+  },
+  "考古学家": {
+   "full": "art/full/c1e4c8f72ba50cdc.webp"
+  },
+  "肉山魔": {
+   "full": "art/full/e5b3fa6b06907d3e.webp"
+  },
+  "胆小鬼": {
+   "full": "art/full/6826bbcf47d7c444.webp"
+  },
+  "胜利天使": {
+   "full": "art/full/284df9821506ebc8.webp"
+  },
+  "腐烂雾气": {
+   "full": "art/full/376de7982f05c12d.webp"
+  },
+  "苦痛监牢": {
+   "full": "art/full/174fb554fe60f8cf.webp"
+  },
+  "苦难预言者": {
+   "full": "art/full/c123c872523fe0b6.webp"
+  },
+  "蓄能炮手": {
+   "full": "art/full/6a3ea684e1d7aa6f.webp"
+  },
+  "蔷薇园丁": {
+   "full": "art/full/0f457221f7937b41.webp"
+  },
+  "蔷薇猛虎": {
+   "full": "art/full/fadc1b46d5e03569.webp"
+  },
+  "蔷薇的妖精": {
+   "full": "art/full/1163d60731255ec3.webp"
+  },
+  "蔷薇近卫": {
+   "full": "art/full/ceffd00b7607ef41.webp"
+  },
+  "蝙蝠": {
+   "full": "art/full/44d229feee122abc.webp"
+  },
+  "蝙蝠女王": {
+   "full": "art/full/4137144e03e5a9dd.webp"
+  },
+  "血偿者": {
+   "full": "art/full/9742a0dd87656b1f.webp"
+  },
+  "血法师": {
+   "full": "art/full/aa5bf3a773694a74.webp"
+  },
+  "血玫瑰": {
+   "full": "art/full/073fda90e65ed352.webp"
+  },
+  "被束缚的蔷薇公主": {
+   "full": "art/full/7abff37a25332d39.webp"
+  },
+  "被献祭的松鼠": {
+   "full": "art/full/ea06ec5da36766e5.webp"
+  },
+  "装甲堡垒": {
+   "full": "art/full/c81d9b6735b523de.webp"
+  },
+  "赛博牧羊人": {
+   "full": "art/full/a49faf35397e9b19.webp"
+  },
+  "超载机皇": {
+   "full": "art/full/be9ccab81ba320ac.webp"
+  },
+  "转生苹果": {
+   "full": "art/full/150151492ab7bf5a.webp"
+  },
+  "辅佐帝王的谋士": {
+   "full": "art/full/da371aa7e82940af.webp"
+  },
+  "迅捷的侠盗": {
+   "full": "art/full/c538687ae9bada26.webp"
+  },
+  "远古巨龙": {
+   "full": "art/full/601824d638081867.webp"
+  },
+  "违规操作的炸弹兵": {
+   "full": "art/full/ad1f3ad43069f832.webp"
+  },
+  "连锁飞刃": {
+   "full": "art/full/7791f5758271b59c.webp"
+  },
+  "送葬人": {
+   "full": "art/full/acf5a00bae2e0221.webp"
+  },
+  "通用载人机甲": {
+   "full": "art/full/06868a51d745a02b.webp"
+  },
+  "邪恶骨巫": {
+   "full": "art/full/7b364097fef223df.webp"
+  },
+  "重盾圣铠": {
+   "full": "art/full/5c5583399ea8d265.webp"
+  },
+  "金色的龙心": {
+   "full": "art/full/04d57d2f33231162.webp"
+  },
+  "铁皮打手": {
+   "full": "art/full/c7563da2d98ae2bb.webp"
+  },
+  "铜壳瓢虫": {
+   "full": "art/full/cf3ae36b51f5933b.webp"
+  },
+  "阴深的城堡": {
+   "full": "art/full/20fa1a54a9ad5f27.webp"
+  },
+  "阴险的猎手": {
+   "full": "art/full/c5f469c3d0c177fb.webp"
+  },
+  "随机应变": {
+   "full": "art/full/5c2fc7ec1b8f78b3.webp"
+  },
+  "雏龙": {
+   "full": "art/full/76952dac72650b2b.webp"
+  },
+  "雏龙搭档": {
+   "full": "art/full/9766042a12fb1799.webp"
+  },
+  "雏龙的蛋": {
+   "full": "art/full/f8fd51c9e0e8c4ea.webp"
+  },
+  "静听倾诉的修女": {
+   "full": "art/full/613cd2311782016c.webp"
+  },
+  "鞭策": {
+   "full": "art/full/76de39b6a8adb904.webp"
+  },
+  "飞轮信使": {
+   "full": "art/full/64a59a0fb6ba9ffb.webp"
+  },
+  "飞龙": {
+   "full": "art/full/bfbf709dbaa70b53.webp"
+  },
+  "飞龙峡谷": {
+   "full": "art/full/3c66dc93e227443e.webp"
+  },
+  "驯龙师": {
+   "full": "art/full/56a69fb0a797e940.webp"
+  },
+  "骨球": {
+   "full": "art/full/6f386b7a92cb5ae6.webp"
+  },
+  "骨龙": {
+   "full": "art/full/308f55e3fdfe664d.webp"
+  },
+  "骷髅": {
+   "full": "art/full/e5f0351fc1bea7d6.webp"
+  },
+  "骷髅墓碑": {
+   "full": "art/full/422e2d35e3a2c070.webp"
+  },
+  "骷髅将军": {
+   "full": "art/full/6d3833be30bc557e.webp"
+  },
+  "骸骨兽": {
+   "full": "art/full/77ffedc35c8904c3.webp"
+  },
+  "骸骨和少女": {
+   "full": "art/full/eb6b615a2b4490c8.webp"
+  },
+  "骸骨巨人": {
+   "full": "art/full/0747841509d3fba7.webp"
+  },
+  "骸骨战机": {
+   "full": "art/full/97970fbc8732f528.webp"
+  },
+  "骸骨爆发": {
+   "full": "art/full/535463f41d03d851.webp"
+  },
+  "骸骨犬": {
+   "full": "art/full/348433285de138b7.webp"
+  },
+  "骸骨王": {
+   "full": "art/full/53f0e26a54e4736c.webp"
+  },
+  "高性能引擎机甲": {
+   "full": "art/full/c03fa7424630ebd6.webp"
+  },
+  "鬼火将军": {
+   "full": "art/full/e2410f22b1a4bd4d.webp"
+  },
+  "魔导机兵少女": {
+   "full": "art/full/0d9bd233ada7d832.webp"
+  },
+  "鲜血宝石": {
+   "full": "art/full/b5798a75a533f650.webp"
+  },
+  "鲜血爆发": {
+   "full": "art/full/fcd696643dbc557a.webp"
+  },
+  "齿轮学徒": {
+   "full": "art/full/132f3d12d7a049ca.webp"
+  },
+  "龙心秘宝": {
+   "full": "art/full/ad2cccd02cc94a20.webp"
+  },
+  "龙蛋收藏家": {
+   "full": "art/full/9f13b12baf5ae001.webp"
+  },
+  "龙骑士": {
+   "full": "art/full/8714e1dbc6f482e3.webp"
+  },
+  "龙鳞锻造师": {
+   "full": "art/full/4ec0fa4aa1a3e276.webp"
+  }
+ }
+}

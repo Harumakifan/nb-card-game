@@ -1,5 +1,9 @@
 .git
-*.py
+node_modules
+dist
+server/test
 *.bak-*
-docker-compose.yml
 *.zip
+cards_art_pack*.js
+*.py
+docker-compose.yml
