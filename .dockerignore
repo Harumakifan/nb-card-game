@@ -1,0 +1,5 @@
+.git
+*.py
+*.bak-*
+docker-compose.yml
+*.zip
